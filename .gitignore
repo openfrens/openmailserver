@@ -13,3 +13,6 @@ build/
 runtime/
 data/
 logs/
+.desloppify/
+scorecard.png
+.cursor/rules/desloppify.md

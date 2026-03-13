@@ -11,10 +11,11 @@ from openmailserver.database import SessionLocal, create_all
 from openmailserver.models import ApiKey
 from openmailserver.platform.detect import current_platform
 from openmailserver.schemas import MailboxCreate
-from openmailserver.security import generate_api_key
+from openmailserver.security import DEFAULT_ADMIN_SCOPES, generate_api_key
 from openmailserver.services.backup_service import create_backup, restore_backup, validate_backup
 from openmailserver.services.debug_service import doctor_report
 from openmailserver.services.dns_service import build_dns_plan
+from openmailserver.services.mailbox_service import MailboxExistsError, provision_mailbox
 from openmailserver.services.maildir_service import ensure_maildir
 from openmailserver.services.runtime_setup import render_runtime_bundle
 
@@ -22,7 +23,6 @@ app = typer.Typer(help="Agent-friendly control plane for openmailserver.")
 
 
 def _session():
-    create_all()
     return SessionLocal()
 
 
@@ -75,7 +75,7 @@ def _bootstrap_admin_key() -> str:
         ApiKey(
             name="installer-admin",
             key_hash=key.hashed_key,
-            scopes=["admin", "debug:read", "mail:read", "mail:send"],
+            scopes=list(DEFAULT_ADMIN_SCOPES),
         )
     )
     session.commit()
@@ -149,15 +149,16 @@ def doctor() -> None:
 @app.command("create-mailbox")
 def create_mailbox(local_part: str, domain: str, password: str | None = None) -> None:
     """Create a mailbox and return its credentials."""
-    from openmailserver.api.mailboxes import create_mailbox as create_mailbox_api
-
     payload = MailboxCreate(local_part=local_part, domain=domain, password=password)
+    create_all()
     session = _session()
     try:
-        result = create_mailbox_api(payload, db=session, _=object())
+        result = provision_mailbox(session, payload)
+    except MailboxExistsError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     finally:
         session.close()
-    typer.echo(json.dumps(result, indent=2))
+    typer.echo(json.dumps(result.model_dump(), indent=2))
 
 
 @app.command("smoke-test")
@@ -183,9 +184,12 @@ def queue() -> None:
     """Show current outbound queue state."""
     from openmailserver.services.queue_service import list_queue
 
+    create_all()
     session = _session()
     try:
-        typer.echo(json.dumps({"items": list_queue(session)}, indent=2))
+        typer.echo(
+            json.dumps({"items": [entry.model_dump(mode="json") for entry in list_queue(session)]}, indent=2)
+        )
     finally:
         session.close()
 
@@ -193,6 +197,7 @@ def queue() -> None:
 @app.command("backup-create")
 def backup_create() -> None:
     """Create an encrypted backup archive."""
+    create_all()
     session = _session()
     try:
         path = create_backup(session)
@@ -205,13 +210,21 @@ def backup_create() -> None:
 def backup_verify(path: str | None = None) -> None:
     """Verify a backup archive."""
     settings = get_settings()
-    backup_path = Path(path) if path else sorted(settings.backup_dir.glob("*.enc"))[-1]
+    if path:
+        backup_path = Path(path)
+    else:
+        backups = sorted(settings.backup_dir.glob("*.enc"))
+        if not backups:
+            typer.echo(json.dumps({"status": "missing", "reason": "No backup archive found"}, indent=2))
+            raise typer.Exit(code=1)
+        backup_path = backups[-1]
     typer.echo(json.dumps(validate_backup(backup_path), indent=2))
 
 
 @app.command()
 def restore(path: str) -> None:
     """Restore a backup archive into the local runtime."""
+    create_all()
     session = _session()
     try:
         typer.echo(json.dumps(restore_backup(session, Path(path)), indent=2))
