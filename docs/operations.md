@@ -47,10 +47,12 @@ Maildir stores inbound message files.
 Backup and restore cover:
 
 - Maildir
+- attachments stored under `data/attachments`
 - Postgres-backed control-plane data
-- config
-- generated secrets
-- DKIM-related runtime state where present
+
+Backup and restore do not currently capture runtime config under `runtime/`, generated
+secret material such as `runtime/secrets.json`, or other host-level mail server state.
+Copy those files separately if you need full-environment recovery.
 
 ## Troubleshooting
 

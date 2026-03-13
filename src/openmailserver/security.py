@@ -9,6 +9,15 @@ from dataclasses import dataclass
 
 import bcrypt
 
+ADMIN_SCOPE = "admin"
+DEBUG_READ_SCOPE = "debug:read"
+MAIL_READ_SCOPE = "mail:read"
+MAIL_SEND_SCOPE = "mail:send"
+WILDCARD_SCOPE = "*"
+
+DEFAULT_ADMIN_SCOPES = (ADMIN_SCOPE, DEBUG_READ_SCOPE, MAIL_READ_SCOPE, MAIL_SEND_SCOPE)
+DEFAULT_MAILBOX_SCOPES = (MAIL_READ_SCOPE, MAIL_SEND_SCOPE)
+
 SECRET_REPLACEMENTS = [
     re.compile(r"(?i)(api[_-]?key|password|secret|token)\s*[:=]\s*([^\s]+)"),
     re.compile(r"(?i)(authorization:\s*bearer\s+)([a-z0-9._-]+)"),
@@ -62,7 +71,7 @@ def parse_scopes(scopes: str | Iterable[str]) -> list[str]:
 
 def scopes_include(required: str, granted_scopes: Iterable[str]) -> bool:
     granted = set(granted_scopes)
-    return required in granted or "*" in granted or "admin" in granted
+    return required in granted or WILDCARD_SCOPE in granted or ADMIN_SCOPE in granted
 
 
 @dataclass(slots=True)

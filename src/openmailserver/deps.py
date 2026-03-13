@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from openmailserver.config import get_settings
@@ -21,9 +21,10 @@ def get_db() -> Generator[Session, None, None]:
 
 def require_api_key(required_scope: str):
     def dependency(
+        request: Request,
         db: Session = Depends(get_db),
-        api_key: str | None = Header(default=None, alias=get_settings().api_key_header),
     ) -> ApiKey:
+        api_key = request.headers.get(get_settings().api_key_header)
         if not api_key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
 
@@ -36,3 +37,8 @@ def require_api_key(required_scope: str):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API key")
 
     return dependency
+
+
+def require_debug_api_enabled() -> None:
+    if not get_settings().debug_api_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Debug API is disabled")

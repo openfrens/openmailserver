@@ -4,10 +4,10 @@ import io
 import json
 import tarfile
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import select
+from sqlalchemy import DateTime, select
 from sqlalchemy.orm import Session
 
 from openmailserver.config import get_settings
@@ -20,6 +20,8 @@ from openmailserver.models import (
     OutboundMessage,
     TrustedPeer,
 )
+
+_ALLOWED_BACKUP_ROOTS = {"database.json", "maildir", "attachments"}
 
 
 def _fernet() -> Fernet:
@@ -36,6 +38,56 @@ def _dump_table(db: Session, model) -> list[dict]:
         {column.name: getattr(record, column.name) for column in model.__table__.columns}
         for record in records
     ]
+
+
+def _restore_entry(model, entry: dict) -> dict:
+    restored = {}
+    for column in model.__table__.columns:
+        if column.name not in entry:
+            continue
+        value = entry[column.name]
+        if isinstance(value, str) and isinstance(column.type, DateTime):
+            value = datetime.fromisoformat(value)
+        restored[column.name] = value
+    return restored
+
+
+def _validated_members(archive: tarfile.TarFile) -> list[tarfile.TarInfo]:
+    members = archive.getmembers()
+    safe_members: list[tarfile.TarInfo] = []
+    for member in members:
+        relative_path = PurePosixPath(member.name)
+        if not member.name:
+            raise ValueError("Backup contains an empty archive member")
+        if relative_path.is_absolute() or ".." in relative_path.parts:
+            raise ValueError(f"Backup contains unsafe path: {member.name}")
+        if relative_path.parts[0] not in _ALLOWED_BACKUP_ROOTS:
+            raise ValueError(f"Backup contains unexpected path: {member.name}")
+        if relative_path.parts[0] == "database.json" and len(relative_path.parts) != 1:
+            raise ValueError("database.json must remain a top-level archive entry")
+        if member.issym() or member.islnk():
+            raise ValueError(f"Backup contains unsupported link entry: {member.name}")
+        if not member.isdir() and not member.isfile():
+            raise ValueError(f"Backup contains unsupported archive member: {member.name}")
+        safe_members.append(member)
+    return safe_members
+
+
+def _extract_members(
+    archive: tarfile.TarFile, destination_root: Path, members: list[tarfile.TarInfo]
+) -> None:
+    for member in members:
+        relative_path = PurePosixPath(member.name)
+        target_path = destination_root.joinpath(*relative_path.parts)
+        if member.isdir():
+            target_path.mkdir(parents=True, exist_ok=True)
+            continue
+
+        extracted = archive.extractfile(member)
+        if extracted is None:
+            raise ValueError(f"Unable to read archived file: {member.name}")
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_bytes(extracted.read())
 
 
 def create_backup(db: Session) -> Path:
@@ -76,7 +128,11 @@ def validate_backup(path: Path) -> dict:
     except InvalidToken as exc:
         return {"status": "invalid", "reason": str(exc)}
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        names = archive.getnames()
+        try:
+            members = _validated_members(archive)
+        except ValueError as exc:
+            return {"status": "invalid", "reason": str(exc)}
+        names = [member.name for member in members]
     return {"status": "ok", "entries": names}
 
 
@@ -84,11 +140,16 @@ def restore_backup(db: Session, path: Path) -> dict:
     settings = get_settings()
     data = _fernet().decrypt(path.read_bytes())
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        database_member = archive.extractfile("database.json")
-        if database_member is None:
+        members = _validated_members(archive)
+        database_info = next((member for member in members if member.name == "database.json"), None)
+        if database_info is None:
             raise ValueError("database.json missing from backup")
+        database_member = archive.extractfile(database_info)
+        if database_member is None:
+            raise ValueError("database.json is unreadable in backup")
         payload = json.loads(database_member.read().decode("utf-8"))
-        archive.extractall(settings.data_dir)
+        content_members = [member for member in members if member.name != "database.json"]
+        _extract_members(archive, settings.data_dir, content_members)
 
     for model in [DeliveryEvent, OutboundMessage, ApiKey, Alias, Mailbox, Domain, TrustedPeer]:
         db.query(model).delete()
@@ -96,7 +157,7 @@ def restore_backup(db: Session, path: Path) -> dict:
 
     def load(model, entries: list[dict]) -> None:
         for entry in entries:
-            db.add(model(**entry))
+            db.add(model(**_restore_entry(model, entry)))
 
     load(Domain, payload.get("domains", []))
     load(Mailbox, payload.get("mailboxes", []))

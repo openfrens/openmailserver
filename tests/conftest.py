@@ -25,7 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from openmailserver.app import app
-from openmailserver.database import Base, SessionLocal, engine
+from openmailserver.database import Base, SessionLocal, get_engine
 from openmailserver.models import ApiKey
 from openmailserver.security import hash_api_key
 
@@ -34,6 +34,7 @@ from openmailserver.security import hash_api_key
 def reset_database():
     runtime = Path("./tests/runtime")
     runtime.mkdir(parents=True, exist_ok=True)
+    engine = get_engine()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -52,6 +53,15 @@ def reset_database():
 @pytest.fixture()
 def client() -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture()
+def db_session():
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture()

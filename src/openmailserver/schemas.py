@@ -21,6 +21,12 @@ class AliasCreate(BaseModel):
     destination: str
 
 
+class AliasRead(BaseModel):
+    id: int
+    source: str
+    destination: str
+
+
 class SendMailRequest(BaseModel):
     sender: str
     recipients: list[str]
@@ -60,12 +66,33 @@ class ApiKeyResponse(BaseModel):
     scopes: list[str]
 
 
+class MailboxProvisionResponse(BaseModel):
+    mailbox: MailboxRead
+    password: str
+    api_key: ApiKeyResponse
+
+
+class MailboxMessageSummary(BaseModel):
+    id: str
+    subject: str | None = None
+    from_address: str | None = Field(default=None, alias="from", serialization_alias="from")
+    to: str | None = None
+    date: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class MailboxMessageRead(MailboxMessageSummary):
+    body: str
+
+
 class QueueEntry(BaseModel):
     id: int
     state: str
     queue_id: str | None
     message_id: str | None
     error: str | None
+    created_at: datetime
 
 
 class HealthResponse(BaseModel):

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from openmailserver import deps
+
 
 def test_health_endpoint(client):
     response = client.get("/health")
@@ -53,3 +57,16 @@ def test_debug_and_backup_endpoints(client, admin_headers):
     )
     assert validate_response.status_code == 200
     assert validate_response.json()["status"] == "ok"
+
+
+def test_debug_endpoints_respect_debug_api_toggle(client, admin_headers, monkeypatch):
+    monkeypatch.setattr(
+        deps,
+        "get_settings",
+        lambda: SimpleNamespace(debug_api_enabled=False, api_key_header="X-OpenMailserver-Key"),
+    )
+
+    response = client.get("/v1/debug/config", headers=admin_headers)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Debug API is disabled"

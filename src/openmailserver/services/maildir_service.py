@@ -6,6 +6,7 @@ from email.parser import BytesParser
 from pathlib import Path
 
 from openmailserver.config import get_settings
+from openmailserver.schemas import MailboxMessageRead, MailboxMessageSummary
 
 
 def mailbox_path(email_address: str) -> Path:
@@ -21,25 +22,25 @@ def ensure_maildir(email_address: str) -> Path:
     return path
 
 
-def list_messages(email_address: str) -> list[dict]:
+def list_messages(email_address: str) -> list[MailboxMessageSummary]:
     path = ensure_maildir(email_address)
     maildir = mailbox.Maildir(path, factory=None, create=True)
-    messages: list[dict] = []
+    messages: list[MailboxMessageSummary] = []
     for key, raw in maildir.iteritems():
         parsed = BytesParser(policy=policy.default).parsebytes(raw.as_bytes())
         messages.append(
-            {
-                "id": str(key),
-                "subject": parsed.get("Subject"),
-                "from": parsed.get("From"),
-                "to": parsed.get("To"),
-                "date": parsed.get("Date"),
-            }
+            MailboxMessageSummary(
+                id=str(key),
+                subject=parsed.get("Subject"),
+                from_address=parsed.get("From"),
+                to=parsed.get("To"),
+                date=parsed.get("Date"),
+            )
         )
-    return sorted(messages, key=lambda item: item["date"] or "", reverse=True)
+    return sorted(messages, key=lambda item: item.date or "", reverse=True)
 
 
-def get_message(email_address: str, message_id: str) -> dict | None:
+def get_message(email_address: str, message_id: str) -> MailboxMessageRead | None:
     path = ensure_maildir(email_address)
     maildir = mailbox.Maildir(path, factory=None, create=True)
     if message_id not in maildir:
@@ -53,14 +54,14 @@ def get_message(email_address: str, message_id: str) -> dict | None:
                 body += part.get_content()
     else:
         body = parsed.get_content()
-    return {
-        "id": message_id,
-        "subject": parsed.get("Subject"),
-        "from": parsed.get("From"),
-        "to": parsed.get("To"),
-        "date": parsed.get("Date"),
-        "body": body,
-    }
+    return MailboxMessageRead(
+        id=message_id,
+        subject=parsed.get("Subject"),
+        from_address=parsed.get("From"),
+        to=parsed.get("To"),
+        date=parsed.get("Date"),
+        body=body,
+    )
 
 
 def deliver_local_copy(email_address: str, raw_message: bytes) -> str:

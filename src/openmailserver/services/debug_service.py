@@ -7,14 +7,11 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from openmailserver.config import get_settings
+from openmailserver.platform.base import PlatformCheck
 from openmailserver.platform.detect import current_platform
 from openmailserver.services.dns_service import build_dns_plan
 from openmailserver.services.logging_service import tail_log_file
-from openmailserver.services.queue_service import list_queue, message_trace
-
-
-def _check(name: str, status: str, details: str):
-    return type("Check", (), {"name": name, "status": status, "details": details})()
+from openmailserver.services.queue_service import list_queue
 
 
 def health_report() -> dict:
@@ -36,7 +33,7 @@ def doctor_report(root: Path | None = None) -> dict:
     checks = []
     checks.extend(adapter.platform_checks(root))
     checks.append(
-        _check(
+        PlatformCheck(
             "secrets",
             "pass" if settings.admin_api_key else "warn",
             (
@@ -46,7 +43,9 @@ def doctor_report(root: Path | None = None) -> dict:
             ),
         )
     )
-    checks.append(_check("port25", "warn", "Direct-to-MX requires outbound port 25 reachability."))
+    checks.append(
+        PlatformCheck("port25", "warn", "Direct-to-MX requires outbound port 25 reachability.")
+    )
     return {
         "status": "ok" if all(check.status == "pass" for check in checks) else "warn",
         "platform": platform.system().lower(),
@@ -81,10 +80,6 @@ def debug_bundle(db: Session) -> dict:
     return {
         "health": health_report(),
         "doctor": doctor_report(),
-        "queue": list_queue(db),
+        "queue": [entry.model_dump() for entry in list_queue(db)],
         "logs": tail_log_file(50),
     }
-
-
-def debug_trace(db: Session, outbound_message_id: int) -> dict:
-    return message_trace(db, outbound_message_id)
