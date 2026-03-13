@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openmailserver
+      POSTGRES_USER: openmailserver
+      POSTGRES_PASSWORD: openmailserver
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  api:
+    image: python:3.11-slim
+    working_dir: /app
+    command: >
+      sh -lc "pip install -e . &&
+      uvicorn openmailserver.app:app --host 0.0.0.0 --port 8787"
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    ports:
+      - "8787:8787"
+    depends_on:
+      - postgres
