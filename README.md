@@ -6,14 +6,12 @@ It gives you HTTP endpoints, a CLI, and generated mail-stack configuration for r
 
 Requires Python `3.11+`.
 
-Repository: [github.com/openfrens/openmailserver](https://github.com/openfrens/openmailserver)
-
 ## For Your Agent
 
 Paste this into your agent:
 
 ```text
-Set up openmailserver in this repo. Run all of the following.
+Set up openmailserver from https://github.com/openfrens/openmailserver. Run all of the following in the repo.
 
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
@@ -44,13 +42,6 @@ Use `docs/install.md` for the full setup details.
 - `Postgres` for control-plane state and outbound metadata
 - `Maildir` for local mailbox storage
 
-## V1 Goal
-
-1. install `openmailserver`
-2. create a mailbox
-3. send mail
-4. receive mail
-
 ## Quick Reference
 
 ```bash
@@ -67,10 +58,10 @@ MIT. See `LICENSE`.
 
 ## Docs
 
-- `docs/install.md`
-- `docs/api.md`
-- `docs/operations.md`
-- `docs/architecture.md`
-- `docs/dns.md`
-- `docs/security.md`
-- `docs/platforms.md`
+- [`docs/install.md`](docs/install.md)
+- [`docs/api.md`](docs/api.md)
+- [`docs/operations.md`](docs/operations.md)
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/dns.md`](docs/dns.md)
+- [`docs/security.md`](docs/security.md)
+- [`docs/platforms.md`](docs/platforms.md)
