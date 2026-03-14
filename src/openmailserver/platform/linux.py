@@ -12,7 +12,8 @@ class LinuxAdapter(PlatformAdapter):
         return [
             (
                 "sudo apt-get update && sudo apt-get install -y "
-                "python3.11 python3-pip postfix dovecot-core postgresql"
+                "python3 python3-venv python3-pip postfix dovecot-core "
+                "dovecot-imapd postgresql"
             ),
             "For non-Debian systems, install equivalent postfix, dovecot, and postgres packages.",
         ]
@@ -52,7 +53,7 @@ set -euo pipefail
 
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update
-  sudo apt-get install -y python3.11 python3-pip postfix dovecot-core dovecot-imapd postgresql
+  sudo apt-get install -y python3 python3-venv python3-pip postfix dovecot-core dovecot-imapd postgresql
 elif command -v dnf >/dev/null 2>&1; then
   sudo dnf install -y python3 postgresql-server postfix dovecot
 else
@@ -72,6 +73,12 @@ echo "Packages installed. Run the generated apply-config script next."
 set -euo pipefail
 
 RUNTIME_ROOT="{repo_root}/runtime"
+
+if [[ ! -d /etc/postfix ]] || [[ ! -d /etc/dovecot ]]; then
+  echo "Postfix or Dovecot config directories are missing."
+  echo "Run runtime/scripts/install-mail-stack-linux.sh successfully before apply-config."
+  exit 1
+fi
 
 sudo cp "$RUNTIME_ROOT/postfix/main.cf" /etc/postfix/main.cf
 sudo mkdir -p /etc/postfix/sql

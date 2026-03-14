@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform
+import shutil
 import socket
 from pathlib import Path
 
@@ -12,6 +13,19 @@ from openmailserver.platform.detect import current_platform
 from openmailserver.services.dns_service import build_dns_plan
 from openmailserver.services.logging_service import tail_log_file
 from openmailserver.services.queue_service import list_queue
+
+
+def _binary_check(name: str, command: str) -> PlatformCheck:
+    available = shutil.which(command) is not None
+    return PlatformCheck(
+        name,
+        "pass" if available else "warn",
+        (
+            f"{command} is available."
+            if available
+            else f"{command} is missing. Install the required system package first."
+        ),
+    )
 
 
 def health_report() -> dict:
@@ -32,6 +46,9 @@ def doctor_report(root: Path | None = None) -> dict:
     root = root or settings.data_dir
     checks = []
     checks.extend(adapter.platform_checks(root))
+    checks.append(_binary_check("postfix_binary", "postconf"))
+    checks.append(_binary_check("dovecot_binary", "dovecot"))
+    checks.append(_binary_check("postgres_binary", "psql"))
     checks.append(
         PlatformCheck(
             "secrets",

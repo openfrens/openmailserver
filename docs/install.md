@@ -35,6 +35,9 @@ Linux:
 ./runtime/scripts/apply-config-linux.sh
 ```
 
+On Ubuntu and Debian, the generated installer uses the distro-default `python3`,
+`python3-venv`, and `python3-pip` packages rather than a hardcoded minor version.
+
 ## Continue
 
 ```bash
