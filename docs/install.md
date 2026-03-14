@@ -36,7 +36,9 @@ Linux:
 ```
 
 On Ubuntu and Debian, the generated installer uses the distro-default `python3`,
-`python3-venv`, and `python3-pip` packages rather than a hardcoded minor version.
+`python3`, `python3-venv`, and `python3-pip` packages rather than a hardcoded
+minor version, and installs the Dovecot LMTP package needed by the generated
+mail-delivery config.
 
 ## Continue
 

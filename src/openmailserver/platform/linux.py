@@ -13,7 +13,7 @@ class LinuxAdapter(PlatformAdapter):
             (
                 "sudo apt-get update && sudo apt-get install -y "
                 "python3 python3-venv python3-pip postfix dovecot-core "
-                "dovecot-imapd postgresql"
+                "dovecot-imapd dovecot-lmtpd postgresql"
             ),
             "For non-Debian systems, install equivalent postfix, dovecot, and postgres packages.",
         ]
@@ -53,7 +53,7 @@ set -euo pipefail
 
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update
-  sudo apt-get install -y python3 python3-venv python3-pip postfix dovecot-core dovecot-imapd postgresql
+  sudo apt-get install -y python3 python3-venv python3-pip postfix dovecot-core dovecot-imapd dovecot-lmtpd postgresql
 elif command -v dnf >/dev/null 2>&1; then
   sudo dnf install -y python3 postgresql-server postfix dovecot
 else

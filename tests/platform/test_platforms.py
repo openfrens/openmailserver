@@ -13,6 +13,7 @@ def test_linux_adapter_produces_service_unit(tmp_path):
     apply_script = adapter.apply_config_script({"repo_root": str(tmp_path)})
     assert "postfix" in install_script
     assert "python3-venv" in install_script
+    assert "dovecot-lmtpd" in install_script
     assert "python3.11" not in install_script
     assert "/etc/postfix/main.cf" in apply_script
     assert "install-mail-stack-linux.sh successfully" in apply_script
