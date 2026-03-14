@@ -11,7 +11,7 @@ class MacOSAdapter(PlatformAdapter):
 
     def install_hint(self) -> list[str]:
         return [
-            "brew install python@3.11 postgresql@16 dovecot",
+            "brew install curl python@3.11 postgresql@16 dovecot",
             "Use the system postfix binary that ships with macOS.",
         ]
 
@@ -69,7 +69,7 @@ class MacOSAdapter(PlatformAdapter):
         return """#!/usr/bin/env bash
 set -euo pipefail
 
-brew install python@3.11 postgresql@16 dovecot
+brew install curl python@3.11 postgresql@16 dovecot
 brew services start postgresql@16
 sudo launchctl load -w /System/Library/LaunchDaemons/org.postfix.master.plist || true
 sudo mkdir -p /usr/local/etc/dovecot /usr/local/etc/postfix/sql

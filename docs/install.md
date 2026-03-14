@@ -48,6 +48,9 @@ The generated Linux installer also installs the PostgreSQL integration packages
 used by the rendered `Postfix` and `Dovecot` configuration, and bootstraps the
 default `openmailserver` database and role.
 
+Both generated install scripts also install `curl` so the API can be tested
+immediately after setup.
+
 ## API Service Management
 
 The API can run as a background service using the generated scripts under

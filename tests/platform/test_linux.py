@@ -23,6 +23,7 @@ def test_linux_adapter_renders_service_unit_and_scripts(tmp_path):
     assert str(tmp_path / ".venv" / "bin" / "python") in unit
     assert "uvicorn openmailserver.app:app" in unit
     assert "apt-get install" in install_script
+    assert "curl" in install_script
     assert "postfix-pgsql" in install_script
     assert "dovecot-pgsql" in install_script
     assert "cp \"$RUNTIME_ROOT/postfix/main.cf\"" in apply_script

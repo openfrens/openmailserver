@@ -22,6 +22,7 @@ def test_macos_adapter_renders_service_unit_and_scripts(tmp_path):
     assert "<plist version=\"1.0\">" in unit
     assert str(tmp_path / ".venv" / "bin" / "python") in unit
     assert "<string>uvicorn</string>" in unit
+    assert "brew install curl" in install_script
     assert "brew services start postgresql@16" in install_script
     assert "brew services restart dovecot" in apply_script
     assert "launchctl bootstrap system" in service_install_script

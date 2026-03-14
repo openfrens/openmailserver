@@ -12,7 +12,7 @@ class LinuxAdapter(PlatformAdapter):
         return [
             (
                 "sudo apt-get update && sudo apt-get install -y "
-                "python3 python3-venv python3-pip postfix dovecot-core "
+                "curl python3 python3-venv python3-pip postfix dovecot-core "
                 "dovecot-imapd dovecot-lmtpd dovecot-pgsql postfix-pgsql postgresql"
             ),
             "For non-Debian systems, install equivalent postfix, dovecot, and postgres packages.",
@@ -66,9 +66,9 @@ DB_PASSWORD="{db_password}"
 
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update
-  sudo apt-get install -y python3 python3-venv python3-pip postfix dovecot-core dovecot-imapd dovecot-lmtpd dovecot-pgsql postfix-pgsql postgresql
+  sudo apt-get install -y curl python3 python3-venv python3-pip postfix dovecot-core dovecot-imapd dovecot-lmtpd dovecot-pgsql postfix-pgsql postgresql
 elif command -v dnf >/dev/null 2>&1; then
-  sudo dnf install -y python3 postgresql-server postfix postfix-pgsql dovecot dovecot-pgsql
+  sudo dnf install -y curl python3 postgresql-server postfix postfix-pgsql dovecot dovecot-pgsql
 else
   echo "Unsupported package manager. Install python3, postfix, dovecot, and postgresql manually."
   exit 1
