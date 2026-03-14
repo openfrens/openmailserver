@@ -13,6 +13,7 @@ def test_install_command_writes_runtime():
     assert "admin_api_key" in result.stdout
     assert "runtime_files" in result.stdout
     assert "install-mail-stack" in result.stdout
+    assert "install-api-service" in result.stdout
 
 
 def test_plan_dns_command_outputs_records():

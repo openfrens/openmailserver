@@ -105,6 +105,46 @@ def render_runtime_bundle(
     apply_script.write_text(adapter.apply_config_script(context), encoding="utf-8")
     make_executable(apply_script)
 
+    install_api_service_script = scripts_root / f"install-api-service-{adapter.name}.sh"
+    install_api_service_script.write_text(
+        adapter.install_api_service_script(context),
+        encoding="utf-8",
+    )
+    make_executable(install_api_service_script)
+
+    start_api_service_script = scripts_root / f"start-api-service-{adapter.name}.sh"
+    start_api_service_script.write_text(
+        adapter.start_api_service_script(context),
+        encoding="utf-8",
+    )
+    make_executable(start_api_service_script)
+
+    stop_api_service_script = scripts_root / f"stop-api-service-{adapter.name}.sh"
+    stop_api_service_script.write_text(
+        adapter.stop_api_service_script(context),
+        encoding="utf-8",
+    )
+    make_executable(stop_api_service_script)
+
+    restart_api_service_script = scripts_root / f"restart-api-service-{adapter.name}.sh"
+    restart_api_service_script.write_text(
+        adapter.restart_api_service_script(context),
+        encoding="utf-8",
+    )
+    make_executable(restart_api_service_script)
+
+    status_api_service_script = scripts_root / f"status-api-service-{adapter.name}.sh"
+    status_api_service_script.write_text(
+        adapter.status_api_service_script(context),
+        encoding="utf-8",
+    )
+    make_executable(status_api_service_script)
+
     rendered_files["install_script"] = str(install_script)
     rendered_files["apply_config_script"] = str(apply_script)
+    rendered_files["install_api_service_script"] = str(install_api_service_script)
+    rendered_files["start_api_service_script"] = str(start_api_service_script)
+    rendered_files["stop_api_service_script"] = str(stop_api_service_script)
+    rendered_files["restart_api_service_script"] = str(restart_api_service_script)
+    rendered_files["status_api_service_script"] = str(status_api_service_script)
     return rendered_files

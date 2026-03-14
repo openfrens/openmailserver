@@ -31,3 +31,18 @@ class PlatformAdapter:
 
     def apply_config_script(self, context: dict[str, str]) -> str:
         raise NotImplementedError
+
+    def install_api_service_script(self, context: dict[str, str]) -> str:
+        raise NotImplementedError
+
+    def start_api_service_script(self, context: dict[str, str]) -> str:
+        raise NotImplementedError
+
+    def stop_api_service_script(self, context: dict[str, str]) -> str:
+        raise NotImplementedError
+
+    def restart_api_service_script(self, context: dict[str, str]) -> str:
+        raise NotImplementedError
+
+    def status_api_service_script(self, context: dict[str, str]) -> str:
+        raise NotImplementedError

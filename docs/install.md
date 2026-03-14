@@ -26,6 +26,8 @@ macOS:
 ```bash
 ./runtime/scripts/install-mail-stack-macos.sh
 ./runtime/scripts/apply-config-macos.sh
+./runtime/scripts/install-api-service-macos.sh
+./runtime/scripts/status-api-service-macos.sh
 ```
 
 Linux:
@@ -33,12 +35,31 @@ Linux:
 ```bash
 ./runtime/scripts/install-mail-stack-linux.sh
 ./runtime/scripts/apply-config-linux.sh
+./runtime/scripts/install-api-service-linux.sh
+./runtime/scripts/status-api-service-linux.sh
 ```
 
-On Ubuntu and Debian, the generated installer uses the distro-default `python3`,
+On Ubuntu and Debian, the generated installer uses the distro-default
 `python3`, `python3-venv`, and `python3-pip` packages rather than a hardcoded
 minor version, and installs the Dovecot LMTP package needed by the generated
 mail-delivery config.
+
+The generated Linux installer also installs the PostgreSQL integration packages
+used by the rendered `Postfix` and `Dovecot` configuration, and bootstraps the
+default `openmailserver` database and role.
+
+## API Service Management
+
+The API can run as a background service using the generated scripts under
+`runtime/scripts/`.
+
+Useful scripts:
+
+- `install-api-service-linux.sh` / `install-api-service-macos.sh`
+- `start-api-service-linux.sh` / `start-api-service-macos.sh`
+- `stop-api-service-linux.sh` / `stop-api-service-macos.sh`
+- `restart-api-service-linux.sh` / `restart-api-service-macos.sh`
+- `status-api-service-linux.sh` / `status-api-service-macos.sh`
 
 ## Continue
 

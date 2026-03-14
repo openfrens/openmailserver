@@ -29,3 +29,13 @@ def test_platform_adapter_defaults_and_abstract_methods():
         adapter.install_script({})
     with pytest.raises(NotImplementedError):
         adapter.apply_config_script({})
+    with pytest.raises(NotImplementedError):
+        adapter.install_api_service_script({})
+    with pytest.raises(NotImplementedError):
+        adapter.start_api_service_script({})
+    with pytest.raises(NotImplementedError):
+        adapter.stop_api_service_script({})
+    with pytest.raises(NotImplementedError):
+        adapter.restart_api_service_script({})
+    with pytest.raises(NotImplementedError):
+        adapter.status_api_service_script({})

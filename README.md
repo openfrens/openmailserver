@@ -21,6 +21,9 @@ python3 -m venv .venv
 Then run the generated platform scripts from `runtime/scripts/`.
 - On macOS use the `*-macos.sh` scripts.
 - On Linux use the `*-linux.sh` scripts.
+- Run the mail-stack install/apply scripts first.
+- Run the `install-api-service-*` script to start the API as a background service.
+- Use the `status-api-service-*`, `restart-api-service-*`, and `stop-api-service-*` scripts to manage it later.
 
 Then continue with:
 .venv/bin/openmailserver plan-dns
@@ -46,6 +49,10 @@ Use `docs/install.md` for the full setup details.
 
 ```bash
 .venv/bin/openmailserver install
+./runtime/scripts/install-mail-stack-linux.sh
+./runtime/scripts/apply-config-linux.sh
+./runtime/scripts/install-api-service-linux.sh
+./runtime/scripts/status-api-service-linux.sh
 .venv/bin/openmailserver doctor
 .venv/bin/openmailserver plan-dns
 .venv/bin/openmailserver create-mailbox <local-part> <domain>

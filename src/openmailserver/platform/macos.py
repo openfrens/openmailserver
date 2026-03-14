@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import getpass
 from pathlib import Path
 
 from openmailserver.platform.base import PlatformAdapter, PlatformCheck
@@ -28,15 +29,20 @@ class MacOSAdapter(PlatformAdapter):
         ]
 
     def api_service_unit(self, root: Path) -> str:
+        python_bin = root / ".venv" / "bin" / "python"
+        log_file = root / "logs" / "openmailserver-api.log"
+        user_name = getpass.getuser()
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>Label</key>
   <string>ai.openmailserver.api</string>
+  <key>UserName</key>
+  <string>{user_name}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>python3</string>
+    <string>{python_bin}</string>
     <string>-m</string>
     <string>uvicorn</string>
     <string>openmailserver.app:app</string>
@@ -47,6 +53,10 @@ class MacOSAdapter(PlatformAdapter):
   </array>
   <key>WorkingDirectory</key>
   <string>{root}</string>
+  <key>StandardOutPath</key>
+  <string>{log_file}</string>
+  <key>StandardErrorPath</key>
+  <string>{log_file}</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -82,4 +92,54 @@ sudo cp "$RUNTIME_ROOT/dovecot/dovecot-sql.conf.ext" /usr/local/etc/dovecot/dove
 sudo postfix reload || true
 brew services restart dovecot || true
 echo "Applied Postfix and Dovecot configuration on macOS."
+"""
+
+    def install_api_service_script(self, context: dict[str, str]) -> str:
+        repo_root = context["repo_root"]
+        return f"""#!/usr/bin/env bash
+set -euo pipefail
+
+RUNTIME_ROOT="{repo_root}/runtime"
+PLIST_TARGET="/Library/LaunchDaemons/ai.openmailserver.api.plist"
+
+sudo cp "$RUNTIME_ROOT/ai.openmailserver.api.plist" "$PLIST_TARGET"
+sudo chown root:wheel "$PLIST_TARGET"
+sudo launchctl bootout system/ai.openmailserver.api >/dev/null 2>&1 || true
+sudo launchctl bootstrap system "$PLIST_TARGET"
+sudo launchctl enable system/ai.openmailserver.api
+sudo launchctl kickstart -k system/ai.openmailserver.api
+"""
+
+    def start_api_service_script(self, context: dict[str, str]) -> str:
+        return """#!/usr/bin/env bash
+set -euo pipefail
+
+sudo launchctl print system/ai.openmailserver.api >/dev/null 2>&1 || \
+  sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openmailserver.api.plist
+sudo launchctl enable system/ai.openmailserver.api
+sudo launchctl kickstart -k system/ai.openmailserver.api
+"""
+
+    def stop_api_service_script(self, context: dict[str, str]) -> str:
+        return """#!/usr/bin/env bash
+set -euo pipefail
+
+sudo launchctl bootout system/ai.openmailserver.api
+"""
+
+    def restart_api_service_script(self, context: dict[str, str]) -> str:
+        return """#!/usr/bin/env bash
+set -euo pipefail
+
+sudo launchctl bootout system/ai.openmailserver.api >/dev/null 2>&1 || true
+sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openmailserver.api.plist
+sudo launchctl enable system/ai.openmailserver.api
+sudo launchctl kickstart -k system/ai.openmailserver.api
+"""
+
+    def status_api_service_script(self, context: dict[str, str]) -> str:
+        return """#!/usr/bin/env bash
+set -euo pipefail
+
+sudo launchctl print system/ai.openmailserver.api
 """
