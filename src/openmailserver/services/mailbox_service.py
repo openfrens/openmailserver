@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from openmailserver.models import Alias, ApiKey, Domain, Mailbox
+from openmailserver.models import Alias, ApiKey, Mailbox
 from openmailserver.schemas import (
     AliasCreate,
     AliasRead,
@@ -17,6 +17,7 @@ from openmailserver.security import (
     generate_secret,
     hash_mailbox_password,
 )
+from openmailserver.services.domain_service import ensure_domain_ready
 from openmailserver.services.maildir_service import ensure_maildir
 
 
@@ -25,11 +26,7 @@ class MailboxExistsError(ValueError):
 
 
 def provision_mailbox(db: Session, payload: MailboxCreate) -> MailboxProvisionResponse:
-    domain = db.query(Domain).filter(Domain.name == payload.domain).first()
-    if not domain:
-        domain = Domain(name=payload.domain)
-        db.add(domain)
-        db.flush()
+    domain = ensure_domain_ready(db, payload.domain)
 
     email = f"{payload.local_part}@{payload.domain}"
     if db.query(Mailbox).filter(Mailbox.email == email).first():

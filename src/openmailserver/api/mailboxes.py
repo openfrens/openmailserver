@@ -13,6 +13,7 @@ from openmailserver.schemas import (
     MailboxProvisionResponse,
 )
 from openmailserver.security import ADMIN_SCOPE, MAIL_READ_SCOPE
+from openmailserver.services.domain_service import DomainNotReadyError
 from openmailserver.services.mailbox_service import (
     MailboxExistsError,
     create_alias_record,
@@ -31,7 +32,7 @@ def create_mailbox(
 ) -> MailboxProvisionResponse:
     try:
         return provision_mailbox(db, payload)
-    except MailboxExistsError as exc:
+    except (MailboxExistsError, DomainNotReadyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

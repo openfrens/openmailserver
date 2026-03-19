@@ -17,14 +17,14 @@ def test_json_type_uses_json_column_type():
 
 
 def test_model_relationships_round_trip(db_session):
-    domain = models.Domain(name="example.test")
+    domain = models.Domain(name="relationships.test")
     db_session.add(domain)
     db_session.flush()
 
     mailbox = models.Mailbox(
         domain=domain,
         local_part="agent",
-        email="agent@example.test",
+        email="agent@relationships.test",
         password_hash="hashed-password",
         maildir_path="/tmp/maildir",
         quota=2048,
@@ -36,8 +36,8 @@ def test_model_relationships_round_trip(db_session):
         mailbox=mailbox,
     )
     message = models.OutboundMessage(
-        sender="agent@example.test",
-        recipients=["agent@example.test"],
+        sender="agent@relationships.test",
+        recipients=["agent@relationships.test"],
         cc=[],
         bcc=[],
         subject="Hello",
@@ -64,12 +64,12 @@ def test_model_relationships_round_trip(db_session):
 
     stored_mailbox = (
         db_session.query(models.Mailbox)
-        .filter(models.Mailbox.email == "agent@example.test")
+        .filter(models.Mailbox.email == "agent@relationships.test")
         .one()
     )
     stored_message = db_session.query(models.OutboundMessage).one()
 
-    assert stored_mailbox.domain.name == "example.test"
+    assert stored_mailbox.domain.name == "relationships.test"
     assert stored_mailbox.api_keys[0].name == "mailbox-default"
     assert stored_message.events[0].event_type == "queued"
     assert db_session.query(models.TrustedPeer).one().instance_name == "peer-a"

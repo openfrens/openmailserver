@@ -16,17 +16,12 @@ Set up openmailserver from https://github.com/openfrens/openmailserver. Run all 
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/openmailserver install
-.venv/bin/openmailserver doctor
-
-Then run the generated platform scripts from `runtime/scripts/`.
-- On macOS use the `*-macos.sh` scripts.
-- On Linux use the `*-linux.sh` scripts.
-- Run the mail-stack install/apply scripts first.
-- Run the `install-api-service-*` script to start the API as a background service.
-- Use the `status-api-service-*`, `restart-api-service-*`, and `stop-api-service-*` scripts to manage it later.
 
 Then continue with:
 .venv/bin/openmailserver plan-dns
+.venv/bin/openmailserver domains list
+.venv/bin/openmailserver domains attach example.com --dns-mode external
+.venv/bin/openmailserver domains verify example.com --confirm-records
 .venv/bin/openmailserver create-mailbox agent example.com
 .venv/bin/openmailserver smoke-test
 
@@ -37,9 +32,15 @@ If anything fails, use:
 Use `docs/install.md` for the full setup details.
 ```
 
+`openmailserver install` now orchestrates the generated mail-stack scripts for you.
+If a privileged step needs a password, it will try to open a real terminal window,
+continue there, and resume the remaining phases automatically.
+
 ## What It Includes
 
 - HTTP endpoints for mailboxes, aliases, outbound mail, queue state, backups, and debugging
+- attached-domain lifecycle endpoints for `attach`, `status`, and `verify`
+- bring-your-own-domain setup and verification for real mail delivery
 - a CLI designed for agent-driven setup and operations
 - generated `Postfix` and `Dovecot` config
 - `Postgres` for control-plane state and outbound metadata
@@ -49,15 +50,19 @@ Use `docs/install.md` for the full setup details.
 
 ```bash
 .venv/bin/openmailserver install
-./runtime/scripts/install-mail-stack-linux.sh
-./runtime/scripts/apply-config-linux.sh
-./runtime/scripts/install-api-service-linux.sh
-./runtime/scripts/status-api-service-linux.sh
 .venv/bin/openmailserver doctor
 .venv/bin/openmailserver plan-dns
+.venv/bin/openmailserver domains list
+.venv/bin/openmailserver domains attach yourdomain.com --dns-mode external
+.venv/bin/openmailserver domains verify yourdomain.com --confirm-records
 .venv/bin/openmailserver create-mailbox <local-part> <domain>
 .venv/bin/openmailserver smoke-test
 ```
+
+Advanced or fallback path:
+
+- generated scripts still live under `runtime/scripts/`
+- use them directly only if you want manual control over package install, config apply, or service management
 
 ## License
 
@@ -70,5 +75,6 @@ MIT. See `LICENSE`.
 - [`docs/operations.md`](docs/operations.md)
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/dns.md`](docs/dns.md)
+- [`docs/domains.md`](docs/domains.md)
 - [`docs/security.md`](docs/security.md)
 - [`docs/platforms.md`](docs/platforms.md)

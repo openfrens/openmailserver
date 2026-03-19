@@ -2,6 +2,10 @@
 
 ## Core Endpoints
 
+- `GET /v1/domains`
+- `POST /v1/domains/attach`
+- `GET /v1/domains/{name}`
+- `POST /v1/domains/{name}/verify`
 - `POST /v1/mail/send`
 - `GET /v1/outbound`
 - `GET /v1/outbound/{id}`
@@ -25,6 +29,30 @@
 
 ```bash
 curl http://127.0.0.1:8787/health
+```
+
+## Domain Attach Example
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/domains/attach \
+  -H "Content-Type: application/json" \
+  -H "X-OpenMailserver-Key: <admin-api-key>" \
+  -d '{
+    "name": "example.net",
+    "dns_mode": "external",
+    "attach_source": "manual"
+  }'
+```
+
+## Domain Verify Example
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/domains/example.net/verify \
+  -H "Content-Type: application/json" \
+  -H "X-OpenMailserver-Key: <admin-api-key>" \
+  -d '{
+    "confirmed_records": true
+  }'
 ```
 
 ## Send Example

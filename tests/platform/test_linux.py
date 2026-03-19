@@ -26,6 +26,16 @@ def test_linux_adapter_renders_service_unit_and_scripts(tmp_path):
     assert "curl" in install_script
     assert "postfix-pgsql" in install_script
     assert "dovecot-pgsql" in install_script
+    assert "sudo -n true" in install_script
+    assert "OPENMAILSERVER_INTERACTIVE_RELAUNCHED" in install_script
+    assert "OPENMAILSERVER_RESUME_COMMAND" in install_script
+    assert "OPENMAILSERVER_HANDOFF_EXIT_CODE" in install_script
+    assert "Resuming Open Mailserver install" in install_script
+    assert "x-terminal-emulator" in install_script
+    assert "Opened a new terminal window" in install_script
     assert "cp \"$RUNTIME_ROOT/postfix/main.cf\"" in apply_script
+    assert "require_sudo_access" in apply_script
     assert "enable --now openmailserver.service" in service_install_script
+    assert "require_sudo_access" in service_install_script
+    assert "require_sudo_access" in service_status_script
     assert "systemctl status openmailserver.service" in service_status_script

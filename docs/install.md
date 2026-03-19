@@ -8,10 +8,25 @@
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/openmailserver install
-.venv/bin/openmailserver doctor
 ```
 
-The install step writes:
+The install step now does the full agent-first setup flow:
+
+- generates runtime `Postfix` and `Dovecot` config
+- writes SQL lookup files and service definitions
+- runs the generated platform install/apply/service scripts in order
+- saves installer state under `runtime/install-state.json`
+- runs the readiness checks that used to require a separate `doctor` call
+
+If a privileged phase needs a real terminal for `sudo`, the installer will try to
+open one automatically, finish the privileged script there, and resume the
+remaining phases. If the machine cannot open a GUI terminal, rerun:
+
+```bash
+.venv/bin/openmailserver install --resume
+```
+
+The install step still writes:
 
 - runtime `Postfix` config
 - runtime `Dovecot` config
@@ -19,7 +34,7 @@ The install step writes:
 - platform setup scripts
 - API service definition
 
-## Apply Mail Stack Setup
+## Manual Fallback
 
 macOS:
 
@@ -49,7 +64,8 @@ used by the rendered `Postfix` and `Dovecot` configuration, and bootstraps the
 default `openmailserver` database and role.
 
 Both generated install scripts also install `curl` so the API can be tested
-immediately after setup.
+immediately after setup. Most users should not need to run these scripts
+manually because `openmailserver install` now orchestrates them.
 
 ## API Service Management
 
@@ -67,10 +83,29 @@ Useful scripts:
 ## Continue
 
 ```bash
+.venv/bin/openmailserver doctor
 .venv/bin/openmailserver plan-dns
+.venv/bin/openmailserver domains list
+.venv/bin/openmailserver domains attach example.com --dns-mode external
+.venv/bin/openmailserver domains verify example.com --confirm-records
 .venv/bin/openmailserver create-mailbox agent example.com
 .venv/bin/openmailserver smoke-test
 ```
+
+The configured `OPENMAILSERVER_PRIMARY_DOMAIN` is automatically attached to the
+instance during install/startup so the default mailbox flow keeps working.
+
+For additional domains you already own, attach and verify them first:
+
+```bash
+.venv/bin/openmailserver domains attach example.net --dns-mode external
+.venv/bin/openmailserver domains verify example.net --confirm-records
+.venv/bin/openmailserver create-mailbox agent example.net
+```
+
+Domain purchase through an Open Mailserver-managed service is planned, but it
+is not the current setup path. Today the supported production flow is to use
+your own domain and connect it to the instance.
 
 ## Important Configuration
 

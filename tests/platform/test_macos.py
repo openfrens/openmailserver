@@ -24,6 +24,15 @@ def test_macos_adapter_renders_service_unit_and_scripts(tmp_path):
     assert "<string>uvicorn</string>" in unit
     assert "brew install curl" in install_script
     assert "brew services start postgresql@16" in install_script
+    assert "sudo -n true" in install_script
+    assert "OPENMAILSERVER_INTERACTIVE_RELAUNCHED" in install_script
+    assert "OPENMAILSERVER_RESUME_COMMAND" in install_script
+    assert "OPENMAILSERVER_HANDOFF_EXIT_CODE" in install_script
+    assert "Resuming Open Mailserver install" in install_script
+    assert "osascript" in install_script
+    assert "Opened a new Terminal window" in install_script
+    assert "require_sudo_access" in apply_script
     assert "brew services restart dovecot" in apply_script
     assert "launchctl bootstrap system" in service_install_script
+    assert "require_sudo_access" in service_install_script
     assert "launchctl print system/ai.openmailserver.api" in service_status_script

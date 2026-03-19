@@ -4,6 +4,8 @@
 
 - `openmailserver preflight`
 - `openmailserver install`
+- `openmailserver install --resume`
+- `openmailserver install --generate-only`
 - `openmailserver plan-dns`
 - `openmailserver doctor`
 - `openmailserver create-mailbox <local-part> <domain>`
@@ -17,11 +19,10 @@
 ## What `doctor` Checks
 
 - required services and binaries
-- generated runtime config presence
-- database connectivity
-- hostname and local config consistency
-- relay-safety basics
 - direct-delivery readiness
+
+`openmailserver install` now runs `doctor` as its final verification phase. Keep
+using `openmailserver doctor` afterward when you want an explicit re-check.
 
 ## Direct Delivery Requirements
 
@@ -61,6 +62,12 @@ Start with:
 ```bash
 openmailserver doctor
 openmailserver queue
+```
+
+If install was interrupted during a privileged step, resume with:
+
+```bash
+openmailserver install --resume
 ```
 
 Useful debug endpoints:

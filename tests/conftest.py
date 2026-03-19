@@ -28,6 +28,7 @@ from openmailserver.app import app
 from openmailserver.database import Base, SessionLocal, get_engine
 from openmailserver.models import ApiKey
 from openmailserver.security import hash_api_key
+from openmailserver.services.domain_service import bootstrap_primary_domain
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +47,7 @@ def reset_database():
         )
     )
     session.commit()
+    bootstrap_primary_domain(session)
     session.close()
     yield
 

@@ -7,7 +7,7 @@ from openmailserver.config import Settings
 from openmailserver.platform.base import PlatformAdapter
 
 
-def template_context(settings: Settings) -> dict[str, str]:
+def template_context(settings: Settings, repo_root: Path | None = None) -> dict[str, str]:
     return {
         "canonical_hostname": settings.canonical_hostname,
         "primary_domain": settings.primary_domain,
@@ -19,7 +19,7 @@ def template_context(settings: Settings) -> dict[str, str]:
         "database_password": settings.database_password,
         "database_superuser": settings.database_superuser,
         "database_superuser_password": settings.database_superuser_password or "",
-        "repo_root": str(Path.cwd()),
+        "repo_root": str((repo_root or Path.cwd()).resolve()),
     }
 
 
@@ -42,10 +42,16 @@ def make_executable(path: Path) -> None:
     path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
+def _write_script(path: Path, content: str) -> str:
+    path.write_text(content, encoding="utf-8")
+    make_executable(path)
+    return str(path)
+
+
 def render_runtime_bundle(
     settings: Settings, adapter: PlatformAdapter, repo_root: Path
 ) -> dict[str, str]:
-    context = template_context(settings)
+    context = template_context(settings, repo_root)
     runtime_root = settings.config_root
     postfix_root = runtime_root / "postfix"
     dovecot_root = runtime_root / "dovecot"
@@ -97,54 +103,44 @@ def render_runtime_bundle(
         ),
     }
 
-    install_script = scripts_root / f"install-mail-stack-{adapter.name}.sh"
-    install_script.write_text(adapter.install_script(context), encoding="utf-8")
-    make_executable(install_script)
+    script_specs = [
+        (
+            "install_script",
+            scripts_root / f"install-mail-stack-{adapter.name}.sh",
+            adapter.install_script(context),
+        ),
+        (
+            "apply_config_script",
+            scripts_root / f"apply-config-{adapter.name}.sh",
+            adapter.apply_config_script(context),
+        ),
+        (
+            "install_api_service_script",
+            scripts_root / f"install-api-service-{adapter.name}.sh",
+            adapter.install_api_service_script(context),
+        ),
+        (
+            "start_api_service_script",
+            scripts_root / f"start-api-service-{adapter.name}.sh",
+            adapter.start_api_service_script(context),
+        ),
+        (
+            "stop_api_service_script",
+            scripts_root / f"stop-api-service-{adapter.name}.sh",
+            adapter.stop_api_service_script(context),
+        ),
+        (
+            "restart_api_service_script",
+            scripts_root / f"restart-api-service-{adapter.name}.sh",
+            adapter.restart_api_service_script(context),
+        ),
+        (
+            "status_api_service_script",
+            scripts_root / f"status-api-service-{adapter.name}.sh",
+            adapter.status_api_service_script(context),
+        ),
+    ]
+    for key, path, content in script_specs:
+        rendered_files[key] = _write_script(path, content)
 
-    apply_script = scripts_root / f"apply-config-{adapter.name}.sh"
-    apply_script.write_text(adapter.apply_config_script(context), encoding="utf-8")
-    make_executable(apply_script)
-
-    install_api_service_script = scripts_root / f"install-api-service-{adapter.name}.sh"
-    install_api_service_script.write_text(
-        adapter.install_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(install_api_service_script)
-
-    start_api_service_script = scripts_root / f"start-api-service-{adapter.name}.sh"
-    start_api_service_script.write_text(
-        adapter.start_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(start_api_service_script)
-
-    stop_api_service_script = scripts_root / f"stop-api-service-{adapter.name}.sh"
-    stop_api_service_script.write_text(
-        adapter.stop_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(stop_api_service_script)
-
-    restart_api_service_script = scripts_root / f"restart-api-service-{adapter.name}.sh"
-    restart_api_service_script.write_text(
-        adapter.restart_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(restart_api_service_script)
-
-    status_api_service_script = scripts_root / f"status-api-service-{adapter.name}.sh"
-    status_api_service_script.write_text(
-        adapter.status_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(status_api_service_script)
-
-    rendered_files["install_script"] = str(install_script)
-    rendered_files["apply_config_script"] = str(apply_script)
-    rendered_files["install_api_service_script"] = str(install_api_service_script)
-    rendered_files["start_api_service_script"] = str(start_api_service_script)
-    rendered_files["stop_api_service_script"] = str(stop_api_service_script)
-    rendered_files["restart_api_service_script"] = str(restart_api_service_script)
-    rendered_files["status_api_service_script"] = str(status_api_service_script)
     return rendered_files

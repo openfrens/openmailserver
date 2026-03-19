@@ -35,11 +35,11 @@ def test_send_outbound_message_sends_maildir_copy_and_records_event(
     )
     delivered = []
 
-    domain = Domain(name="example.test")
+    domain = Domain(name="outbound.test")
     mailbox = Mailbox(
         domain=domain,
         local_part="agent",
-        email="agent@example.test",
+        email="agent@outbound.test",
         password_hash="hashed",
         maildir_path="/tmp/maildir",
     )
@@ -56,8 +56,8 @@ def test_send_outbound_message_sends_maildir_copy_and_records_event(
 
     record = outbound_service.send_outbound_message(
         db_session,
-        sender="agent@example.test",
-        recipients=["reader@example.test"],
+        sender="agent@outbound.test",
+        recipients=["reader@outbound.test"],
         subject="Hello",
         text_body="World",
     )
@@ -66,7 +66,7 @@ def test_send_outbound_message_sends_maildir_copy_and_records_event(
     events = db_session.query(DeliveryEvent).all()
 
     assert record.state == "sent"
-    assert delivered == ["reader@example.test", "agent@example.test"]
+    assert delivered == ["reader@outbound.test", "agent@outbound.test"]
     assert len(events) == 1
     assert events[0].event_type == "sent"
 

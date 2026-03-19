@@ -4,22 +4,29 @@ import json
 from pathlib import Path
 
 import typer
-from cryptography.fernet import Fernet
 
 from openmailserver.config import Settings, get_settings
 from openmailserver.database import SessionLocal, create_all
-from openmailserver.models import ApiKey
 from openmailserver.platform.detect import current_platform
-from openmailserver.schemas import MailboxCreate
-from openmailserver.security import DEFAULT_ADMIN_SCOPES, generate_api_key
+from openmailserver.schemas import DomainAttachRequest, DomainVerifyRequest, MailboxCreate
 from openmailserver.services.backup_service import create_backup, restore_backup, validate_backup
 from openmailserver.services.debug_service import doctor_report
 from openmailserver.services.dns_service import build_dns_plan
+from openmailserver.services.domain_service import (
+    DomainError,
+    attach_domain,
+    bootstrap_primary_domain,
+    get_domain_status,
+    list_domains,
+    verify_domain,
+)
+from openmailserver.services.installer import INSTALLER_PHASES, run_install
 from openmailserver.services.mailbox_service import MailboxExistsError, provision_mailbox
 from openmailserver.services.maildir_service import ensure_maildir
-from openmailserver.services.runtime_setup import render_runtime_bundle
 
 app = typer.Typer(help="Agent-friendly control plane for openmailserver.")
+domains_app = typer.Typer(help="Manage attached and verified domains.")
+app.add_typer(domains_app, name="domains")
 
 
 def _session():
@@ -34,55 +41,6 @@ def _env_path() -> Path:
     return _repo_root() / ".env"
 
 
-def _write_env(settings: Settings, admin_key: str, backup_key: str) -> Path:
-    path = _env_path()
-    content = f"""OPENMAILSERVER_ENV=development
-OPENMAILSERVER_HOST={settings.host}
-OPENMAILSERVER_PORT={settings.port}
-OPENMAILSERVER_DATA_DIR={settings.data_dir}
-OPENMAILSERVER_LOG_DIR={settings.log_dir}
-OPENMAILSERVER_DATABASE_URL={settings.database_url}
-OPENMAILSERVER_FALLBACK_DATABASE_URL={settings.fallback_database_url}
-OPENMAILSERVER_DATABASE_SUPERUSER={settings.database_superuser}
-OPENMAILSERVER_DATABASE_SUPERUSER_PASSWORD={settings.database_superuser_password or ""}
-OPENMAILSERVER_MAILDIR_ROOT={settings.maildir_root}
-OPENMAILSERVER_ATTACHMENT_ROOT={settings.attachment_root}
-OPENMAILSERVER_CONFIG_ROOT={settings.config_root}
-OPENMAILSERVER_SMTP_HOST={settings.smtp_host}
-OPENMAILSERVER_SMTP_PORT={settings.smtp_port}
-OPENMAILSERVER_SMTP_TIMEOUT_SECONDS={settings.smtp_timeout_seconds}
-OPENMAILSERVER_TRANSPORT_MODE={settings.transport_mode}
-OPENMAILSERVER_CANONICAL_HOSTNAME={settings.canonical_hostname}
-OPENMAILSERVER_PRIMARY_DOMAIN={settings.primary_domain}
-OPENMAILSERVER_PUBLIC_IP={settings.public_ip}
-OPENMAILSERVER_API_KEY_HEADER={settings.api_key_header}
-OPENMAILSERVER_LOG_FILE={settings.log_file}
-OPENMAILSERVER_ADMIN_API_KEY={admin_key}
-OPENMAILSERVER_BACKUP_ENCRYPTION_KEY={backup_key}
-OPENMAILSERVER_MAX_SENDS_PER_HOUR={settings.max_sends_per_hour}
-OPENMAILSERVER_MAX_MESSAGES_PER_MAILBOX={settings.max_messages_per_mailbox}
-OPENMAILSERVER_MAX_ATTACHMENT_BYTES={settings.max_attachment_bytes}
-OPENMAILSERVER_DEBUG_API_ENABLED={str(settings.debug_api_enabled).lower()}
-"""
-    path.write_text(content, encoding="utf-8")
-    return path
-
-
-def _bootstrap_admin_key() -> str:
-    session = _session()
-    key = generate_api_key(prefix="admin")
-    session.add(
-        ApiKey(
-            name="installer-admin",
-            key_hash=key.hashed_key,
-            scopes=list(DEFAULT_ADMIN_SCOPES),
-        )
-    )
-    session.commit()
-    session.close()
-    return key.raw_key
-
-
 @app.command()
 def preflight() -> None:
     """Run platform-aware prerequisite checks."""
@@ -91,37 +49,35 @@ def preflight() -> None:
 
 
 @app.command()
-def install() -> None:
-    """Generate local config, mail-stack files, secrets, and service definitions."""
+def install(
+    resume: bool = typer.Option(False, help="Resume from the saved installer state."),
+    generate_only: bool = typer.Option(
+        False,
+        help="Only generate local config, runtime files, and service definitions.",
+    ),
+    completed_phase: str | None = typer.Option(
+        None,
+        "--completed-phase",
+        help="Internal: mark a handoff phase as complete before resuming.",
+    ),
+) -> None:
+    """Run the agent-first install flow with resume-aware orchestration."""
     settings = get_settings()
-    settings.ensure_directories()
     adapter = current_platform()
-    create_all()
-    admin_key = settings.admin_api_key or _bootstrap_admin_key()
-    backup_key = settings.backup_encryption_key or Fernet.generate_key().decode("utf-8")
-    env_path = _write_env(settings, admin_key, backup_key)
-    service_definition = adapter.api_service_unit(_repo_root())
-    service_name = (
-        "openmailserver.service" if adapter.name == "linux" else "ai.openmailserver.api.plist"
+    if completed_phase and completed_phase not in INSTALLER_PHASES:
+        raise typer.BadParameter(f"Unknown phase: {completed_phase}")
+
+    result = run_install(
+        settings,
+        adapter,
+        _repo_root(),
+        resume=resume,
+        generate_only=generate_only,
+        completed_phase=completed_phase,
     )
-    service_file = settings.config_root / service_name
-    service_file.write_text(service_definition, encoding="utf-8")
-    runtime_files = render_runtime_bundle(settings, adapter, _repo_root())
-    typer.echo(
-        json.dumps(
-            {
-                "status": "ok",
-                "platform": adapter.name,
-                "env_file": str(env_path),
-                "service_file": str(service_file),
-                "install_hint": adapter.install_hint(),
-                "service_hint": adapter.service_hint(),
-                "runtime_files": runtime_files,
-                "admin_api_key": admin_key,
-            },
-            indent=2,
-        )
-    )
+    typer.echo(json.dumps(result, indent=2))
+    if result["status"] == "failed":
+        raise typer.Exit(1)
 
 
 @app.command("plan-dns")
@@ -153,8 +109,9 @@ def create_mailbox(local_part: str, domain: str, password: str | None = None) ->
     create_all()
     session = _session()
     try:
+        bootstrap_primary_domain(session)
         result = provision_mailbox(session, payload)
-    except MailboxExistsError as exc:
+    except (MailboxExistsError, DomainError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     finally:
         session.close()
@@ -234,9 +191,90 @@ def restore(path: str) -> None:
 
 @app.command()
 def bootstrap() -> None:
-    """Convenience wrapper for install -> doctor."""
+    """Convenience wrapper for the full install flow."""
     install()
-    doctor()
+
+
+@domains_app.command("list")
+def domains_list() -> None:
+    """List attached domains and their readiness state."""
+    create_all()
+    session = _session()
+    try:
+        bootstrap_primary_domain(session)
+        items = [item.model_dump(mode="json") for item in list_domains(session)]
+        typer.echo(json.dumps({"items": items}, indent=2))
+    finally:
+        session.close()
+
+
+@domains_app.command("attach")
+def domains_attach(
+    name: str,
+    dns_mode: str = typer.Option("external", help="Use 'external' today; 'managed' is reserved for future hosted flows"),
+    registrar: str | None = typer.Option(None, help="Registrar or provider label"),
+    external_domain_id: str | None = typer.Option(None, help="Provider-side domain identifier"),
+    attach_source: str = typer.Option("manual", help="How this domain was attached"),
+    auto_verify: bool = typer.Option(False, help="Mark the domain verified immediately"),
+) -> None:
+    """Attach a domain to this instance."""
+    create_all()
+    session = _session()
+    try:
+        result = attach_domain(
+            session,
+            DomainAttachRequest(
+                name=name,
+                dns_mode=dns_mode,
+                registrar=registrar,
+                external_domain_id=external_domain_id,
+                attach_source=attach_source,
+                auto_verify=auto_verify,
+            ),
+        )
+        typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+    except DomainError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    finally:
+        session.close()
+
+
+@domains_app.command("status")
+def domains_status(name: str) -> None:
+    """Show DNS plan and readiness state for a domain."""
+    create_all()
+    session = _session()
+    try:
+        bootstrap_primary_domain(session)
+        typer.echo(json.dumps(get_domain_status(session, name).model_dump(mode="json"), indent=2))
+    except DomainError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    finally:
+        session.close()
+
+
+@domains_app.command("verify")
+def domains_verify(
+    name: str,
+    confirm_records: bool = typer.Option(
+        False, help="Confirm that external DNS records have been applied"
+    ),
+    notes: str | None = typer.Option(None, help="Optional operator notes"),
+) -> None:
+    """Verify a domain so it can be used for mailbox creation."""
+    create_all()
+    session = _session()
+    try:
+        result = verify_domain(
+            session,
+            name,
+            DomainVerifyRequest(confirmed_records=confirm_records, notes=notes),
+        )
+        typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+    except DomainError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

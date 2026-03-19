@@ -6,7 +6,8 @@ from fastapi import FastAPI
 
 from openmailserver.api.router import router
 from openmailserver.config import get_settings
-from openmailserver.database import create_all
+from openmailserver.database import SessionLocal, create_all
+from openmailserver.services.domain_service import bootstrap_primary_domain
 
 
 def build_app() -> FastAPI:
@@ -15,6 +16,11 @@ def build_app() -> FastAPI:
         settings = get_settings()
         app.state.settings = settings
         create_all(settings)
+        session = SessionLocal()
+        try:
+            bootstrap_primary_domain(session)
+        finally:
+            session.close()
         yield
 
     app = FastAPI(

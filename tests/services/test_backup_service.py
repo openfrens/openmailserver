@@ -26,15 +26,15 @@ def test_create_validate_and_restore_backup(db_session, monkeypatch, tmp_path):
     )
     monkeypatch.setattr(backup_service, "get_settings", lambda: settings)
 
-    domain = Domain(name="example.test")
+    domain = Domain(name="backup.test")
     mailbox = Mailbox(
         domain=domain,
         local_part="agent",
-        email="agent@example.test",
+        email="agent@backup.test",
         password_hash="hashed",
-        maildir_path=str(data_dir / "maildir" / "example.test" / "agent"),
+        maildir_path=str(data_dir / "maildir" / "backup.test" / "agent"),
     )
-    alias = Alias(source="alias@example.test", destination="agent@example.test")
+    alias = Alias(source="alias@backup.test", destination="agent@backup.test")
     api_key = ApiKey(
         name="default",
         key_hash=hash_api_key("raw-api-key"),
@@ -42,8 +42,8 @@ def test_create_validate_and_restore_backup(db_session, monkeypatch, tmp_path):
         mailbox=mailbox,
     )
     message = OutboundMessage(
-        sender="agent@example.test",
-        recipients=["reader@example.test"],
+        sender="agent@backup.test",
+        recipients=["reader@backup.test"],
         cc=[],
         bcc=[],
         subject="Backup me",
@@ -76,7 +76,7 @@ def test_create_validate_and_restore_backup(db_session, monkeypatch, tmp_path):
     assert validation["status"] == "ok"
     assert "database.json" in validation["entries"]
     assert restore["status"] == "ok"
-    assert db_session.query(Domain).filter(Domain.name == "example.test").count() == 1
+    assert db_session.query(Domain).filter(Domain.name == "backup.test").count() == 1
     assert db_session.query(OutboundMessage).one().subject == "Backup me"
     assert (data_dir / "attachments" / "note.txt").exists()
 

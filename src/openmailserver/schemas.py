@@ -9,6 +9,22 @@ class DomainCreate(BaseModel):
     name: str
 
 
+class DomainAttachRequest(BaseModel):
+    name: str
+    registrar: str | None = None
+    external_domain_id: str | None = None
+    dns_mode: str = "external"
+    nameserver_mode: str | None = None
+    attach_source: str = "manual"
+    metadata: dict = Field(default_factory=dict)
+    auto_verify: bool = False
+
+
+class DomainVerifyRequest(BaseModel):
+    confirmed_records: bool = False
+    notes: str | None = None
+
+
 class MailboxCreate(BaseModel):
     local_part: str
     domain: str
@@ -64,6 +80,30 @@ class MailboxRead(BaseModel):
 class ApiKeyResponse(BaseModel):
     key: str
     scopes: list[str]
+
+
+class DomainRead(BaseModel):
+    id: int
+    name: str
+    registrar: str | None = None
+    external_domain_id: str | None = None
+    verification_status: str
+    dns_mode: str
+    nameserver_mode: str
+    attach_source: str
+    mailbox_ready: bool
+    last_error: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    attached_at: datetime | None = None
+    verified_at: datetime | None = None
+    last_checked_at: datetime | None = None
+    created_at: datetime
+
+
+class DomainStatusResponse(BaseModel):
+    domain: DomainRead
+    dns_plan: list[dict[str, str]]
+    verification: dict = Field(default_factory=dict)
 
 
 class MailboxProvisionResponse(BaseModel):

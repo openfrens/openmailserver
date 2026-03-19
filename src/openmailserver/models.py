@@ -23,6 +23,17 @@ class Domain(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    registrar: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    external_domain_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    verification_status: Mapped[str] = mapped_column(String(64), default="unverified", index=True)
+    dns_mode: Mapped[str] = mapped_column(String(64), default="external")
+    nameserver_mode: Mapped[str] = mapped_column(String(64), default="external")
+    attach_source: Mapped[str] = mapped_column(String(64), default="manual")
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(json_type(), default=dict)
+    attached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     mailboxes: Mapped[list[Mailbox]] = relationship(back_populates="domain")
