@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from openmailserver.api.router import router
 from openmailserver.config import get_settings
 from openmailserver.database import create_all
+from openmailserver.telemetry import start_heartbeat, track
 
 
 def build_app() -> FastAPI:
@@ -15,6 +16,8 @@ def build_app() -> FastAPI:
         settings = get_settings()
         app.state.settings = settings
         create_all(settings)
+        track("server_start")
+        start_heartbeat()
         yield
 
     app = FastAPI(

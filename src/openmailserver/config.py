@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     max_messages_per_mailbox: int = 5000
     max_attachment_bytes: int = Field(default=25 * 1024 * 1024)
     debug_api_enabled: bool = True
+    telemetry: bool = True
 
     def ensure_directories(self) -> None:
         for path in [

@@ -18,8 +18,16 @@ from openmailserver.services.dns_service import build_dns_plan
 from openmailserver.services.mailbox_service import MailboxExistsError, provision_mailbox
 from openmailserver.services.maildir_service import ensure_maildir
 from openmailserver.services.runtime_setup import render_runtime_bundle
+from openmailserver.telemetry import set_enabled, track
 
 app = typer.Typer(help="Agent-friendly control plane for openmailserver.")
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context) -> None:
+    """Agent-friendly control plane for openmailserver."""
+    if ctx.invoked_subcommand:
+        track("cli_command", {"command": ctx.invoked_subcommand})
 
 
 def _session():
@@ -63,6 +71,7 @@ OPENMAILSERVER_MAX_SENDS_PER_HOUR={settings.max_sends_per_hour}
 OPENMAILSERVER_MAX_MESSAGES_PER_MAILBOX={settings.max_messages_per_mailbox}
 OPENMAILSERVER_MAX_ATTACHMENT_BYTES={settings.max_attachment_bytes}
 OPENMAILSERVER_DEBUG_API_ENABLED={str(settings.debug_api_enabled).lower()}
+OPENMAILSERVER_TELEMETRY={str(settings.telemetry).lower()}
 """
     path.write_text(content, encoding="utf-8")
     return path
@@ -237,6 +246,16 @@ def bootstrap() -> None:
     """Convenience wrapper for install -> doctor."""
     install()
     doctor()
+
+
+@app.command("telemetry")
+def telemetry_cmd(
+    enable: bool = typer.Option(True, "--enable/--disable", help="Enable or disable telemetry."),
+) -> None:
+    """Enable or disable anonymous usage telemetry."""
+    set_enabled(enable)
+    state = "enabled" if enable else "disabled"
+    typer.echo(json.dumps({"telemetry": state}, indent=2))
 
 
 if __name__ == "__main__":

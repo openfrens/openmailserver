@@ -1,14 +1,21 @@
 # Open Mailserver
 
-`openmailserver` is an open-source, self-hosted mail server control plane for agents. It helps you provision inboxes on infrastructure you control, using your own domain, through an HTTP API, a CLI, and generated `Postfix` and `Dovecot` configuration for native macOS and Linux hosts.
+`openmailserver` helps you run dedicated email inboxes for agents on infrastructure you control. Use your own domain for signups, verification, sending, and receiving mail, and manage the system through an HTTP API, a CLI, and generated `Postfix` and `Dovecot` configuration for native macOS and Linux hosts.
 
 Website: [openmailserver.com](https://www.openmailserver.com) | License: MIT | Requires Python `3.11+`
 
-## What Open Mailserver Is
+## Why Use Open Mailserver
 
-Open Mailserver manages the control plane for a direct-to-MX mail server. The application handles mailbox provisioning, aliases, API keys, outbound mail metadata, backups, and debugging, while the generated runtime bundle and platform scripts help you install and manage the underlying mail stack on the host.
+Open Mailserver is built for teams and builders who want agent-friendly email without handing mailbox control to a third party.
 
-It includes:
+- Give each agent, bot, or workflow its own mailbox.
+- Use a domain you already own.
+- Keep the mail stack, data, and credentials under your control.
+- Provision and operate mailboxes through code, scripts, or API calls.
+
+## What You Get
+
+This repository provides the control layer for a self-hosted mail server.
 
 - A FastAPI HTTP API for mailboxes, aliases, outbound mail, queue inspection, backups, DNS planning, and debugging.
 - A Typer CLI for install, health checks, mailbox provisioning, queue inspection, backup, and restore workflows.
@@ -17,14 +24,19 @@ It includes:
 - `Maildir` storage for local mailbox contents.
 - Platform-specific runtime scripts for native Linux and macOS setup.
 
-Important operational constraints:
+In practice, that means you install the project, generate the runtime bundle, apply the generated host scripts, set up DNS, and then start creating mailboxes.
 
-- `openmailserver` is designed for direct-to-MX mail delivery.
+## Before You Start
+
+- Open Mailserver is a self-hosted project for native macOS and Linux.
+- It is designed for direct-to-MX delivery.
 - For public internet delivery, the host needs a static public IP, outbound port `25`, forward and reverse DNS, `MX`, `SPF`, `DKIM`, `DMARC`, and `TLS`.
-- `Postfix` and `Dovecot` are not bundled inside the Python package; the generated platform scripts install and configure them on the host.
-- `compose.yaml` is for the API and `Postgres` only, not a full mail-stack deployment.
+- `Postfix` and `Dovecot` are not bundled in the Python package; the generated platform scripts install and configure them on the host.
+- `compose.yaml` runs only the API and `Postgres` for local development. It is not a full mail-stack deployment.
 
 ## Quick Start
+
+### Install The Project
 
 ```bash
 git clone https://github.com/openfrens/openmailserver
@@ -35,13 +47,15 @@ python3 -m venv .venv
 .venv/bin/openmailserver doctor
 ```
 
-The `install` command generates:
+The `install` command creates:
 
 - `.env`
 - Runtime `Postfix` and `Dovecot` configuration
 - SQL lookup files
 - Platform-specific scripts under `runtime/scripts/`
 - A service definition for running the API in the background
+
+### Apply The Generated Host Scripts
 
 Run the generated scripts for your platform from `runtime/scripts/`.
 
@@ -63,7 +77,7 @@ macOS:
 ./runtime/scripts/status-api-service-macos.sh
 ```
 
-Then continue with:
+### Plan DNS And Create Your First Mailbox
 
 ```bash
 .venv/bin/openmailserver plan-dns
@@ -89,8 +103,9 @@ curl http://127.0.0.1:8787/health
 | `openmailserver backup-verify [path]` | Verify a backup archive. |
 | `openmailserver restore <path>` | Restore a backup archive. |
 | `openmailserver bootstrap` | Run `install` followed by `doctor`. |
+| `openmailserver telemetry --disable` | Disable anonymous usage telemetry. |
 
-## Configuration
+## Key Configuration
 
 Review `.env.example` and the generated `.env` before using the system beyond local setup. The most important settings are:
 
@@ -114,7 +129,7 @@ make test
 
 `make run` starts the FastAPI app on `0.0.0.0:8787`. The repository includes automated tests under `tests/`.
 
-After `.env` exists, `compose.yaml` can also be used to run the API and `Postgres` for local control-plane development. It does not install or run the native mail stack.
+After `.env` exists, `compose.yaml` can be used to run the API and `Postgres` for local control-plane development. It does not install or run the native mail stack.
 
 ## Documentation
 
@@ -125,6 +140,42 @@ After `.env` exists, `compose.yaml` can also be used to run the API and `Postgre
 - [`docs/dns.md`](docs/dns.md)
 - [`docs/security.md`](docs/security.md)
 - [`docs/platforms.md`](docs/platforms.md)
+
+## Telemetry
+
+Open Mailserver collects anonymous usage telemetry to help us understand how the project is used and prioritize improvements. Telemetry is **enabled by default** and can be disabled at any time.
+
+### What is collected
+
+- Event name (`cli_command`, `server_start`, `server_heartbeat`, `mailbox_created`)
+- Which CLI command was run (just the name, no arguments or values)
+- OS type, OS version, Python version
+- Package version
+- A random anonymous machine ID (UUID stored in `~/.openmailserver/telemetry_id`)
+
+### What is NOT collected
+
+- Email content, addresses, or domains
+- IP addresses, hostnames, or DNS configuration
+- API keys, passwords, or credentials
+- Any personally identifiable information
+
+### How to opt out
+
+Any of these methods will disable telemetry:
+
+```bash
+# CLI command (persists across sessions)
+openmailserver telemetry --disable
+
+# Environment variable
+export OPENMAILSERVER_TELEMETRY=false
+
+# Cross-tool standard
+export DO_NOT_TRACK=1
+```
+
+Telemetry is also automatically disabled in CI environments.
 
 ## License
 

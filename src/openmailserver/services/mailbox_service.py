@@ -18,6 +18,7 @@ from openmailserver.security import (
     hash_mailbox_password,
 )
 from openmailserver.services.maildir_service import ensure_maildir
+from openmailserver.telemetry import track
 
 
 class MailboxExistsError(ValueError):
@@ -55,6 +56,7 @@ def provision_mailbox(db: Session, payload: MailboxCreate) -> MailboxProvisionRe
     )
     db.add(api_key)
     db.commit()
+    track("mailbox_created")
 
     return MailboxProvisionResponse(
         mailbox=MailboxRead.model_validate(mailbox),
