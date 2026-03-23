@@ -1,5 +1,0 @@
-hosts = {{ database_host }}
-user = {{ database_user }}
-password = {{ database_password }}
-dbname = {{ database_name }}
-query = SELECT maildir_path FROM mailboxes WHERE email='%s' AND active = true

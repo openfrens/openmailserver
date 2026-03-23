@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import stat
 from pathlib import Path
+from textwrap import dedent
 
 from openmailserver.config import Settings
-from openmailserver.platform.base import PlatformAdapter
 
 
 def template_context(settings: Settings) -> dict[str, str]:
+    admin_address = f"admin@{settings.primary_domain}"
     return {
         "canonical_hostname": settings.canonical_hostname,
         "primary_domain": settings.primary_domain,
@@ -20,6 +20,11 @@ def template_context(settings: Settings) -> dict[str, str]:
         "database_superuser": settings.database_superuser,
         "database_superuser_password": settings.database_superuser_password or "",
         "repo_root": str(Path.cwd()),
+        "mox_image": settings.mox_image,
+        "admin_address": admin_address,
+        "quickstart_command": (
+            f"docker compose run --rm mox mox quickstart {admin_address}"
+        ),
     }
 
 
@@ -37,114 +42,68 @@ def render_file(source: Path, destination: Path, context: dict[str, str]) -> Pat
     return destination
 
 
-def make_executable(path: Path) -> None:
-    current_mode = path.stat().st_mode
-    path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-
-def render_runtime_bundle(
-    settings: Settings, adapter: PlatformAdapter, repo_root: Path
-) -> dict[str, str]:
+def render_runtime_bundle(settings: Settings, repo_root: Path) -> dict[str, str]:
     context = template_context(settings)
-    runtime_root = settings.config_root
-    postfix_root = runtime_root / "postfix"
-    dovecot_root = runtime_root / "dovecot"
-    scripts_root = runtime_root / "scripts"
-    scripts_root.mkdir(parents=True, exist_ok=True)
+    settings.mox_config_dir.mkdir(parents=True, exist_ok=True)
+    settings.mox_data_dir.mkdir(parents=True, exist_ok=True)
+    settings.mox_web_dir.mkdir(parents=True, exist_ok=True)
 
-    rendered_files = {
-        "postfix_main_cf": str(
-            render_file(
-                repo_root / "config/postfix/main.cf.template",
-                postfix_root / "main.cf",
-                context,
-            )
-        ),
-        "postfix_virtual_domains": str(
-            render_file(
-                repo_root / "config/postfix/sql/virtual_domains.cf",
-                postfix_root / "sql/virtual_domains.cf",
-                context,
-            )
-        ),
-        "postfix_virtual_mailboxes": str(
-            render_file(
-                repo_root / "config/postfix/sql/virtual_mailboxes.cf",
-                postfix_root / "sql/virtual_mailboxes.cf",
-                context,
-            )
-        ),
-        "postfix_virtual_aliases": str(
-            render_file(
-                repo_root / "config/postfix/sql/virtual_aliases.cf",
-                postfix_root / "sql/virtual_aliases.cf",
-                context,
-            )
-        ),
-        "dovecot_conf": str(
-            render_file(
-                repo_root / "config/dovecot/dovecot.conf",
-                dovecot_root / "dovecot.conf",
-                context,
-            )
-        ),
-        "dovecot_sql_conf": str(
-            render_file(
-                repo_root / "config/dovecot/dovecot-sql.conf.ext.template",
-                dovecot_root / "dovecot-sql.conf.ext",
-                context,
-            )
-        ),
+    settings.mox_readme_path.write_text(
+        render_text(
+            dedent(
+                """
+            # Mox Runtime
+
+            `openmailserver` now ships with a container-first runtime based on `mox`.
+
+            ## Quickstart
+
+            1. Review `.env` and confirm `OPENMAILSERVER_PRIMARY_DOMAIN` plus
+               `OPENMAILSERVER_CANONICAL_HOSTNAME`.
+            2. Generate the `mox` config files:
+
+               `{{ quickstart_command }}`
+
+            3. Start the stack:
+
+               `docker compose up -d`
+
+            `mox` writes its runtime config into `runtime/mox/config/` and stores mail data
+            under `runtime/mox/data/`.
+
+            For public internet delivery, prefer a Linux Docker host and review the upstream
+            deployment notes for DNS, TLS, and listener/networking expectations.
+                """
+            ),
+            context,
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    settings.mox_seed_path.write_text(
+        render_text(
+            dedent(
+                """
+            OPENMAILSERVER_PRIMARY_DOMAIN={{ primary_domain }}
+            OPENMAILSERVER_CANONICAL_HOSTNAME={{ canonical_hostname }}
+            OPENMAILSERVER_MOX_IMAGE={{ mox_image }}
+            OPENMAILSERVER_MOX_ADMIN_ADDRESS={{ admin_address }}
+            OPENMAILSERVER_MOX_QUICKSTART={{ quickstart_command }}
+                """
+            ),
+            context,
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "compose_file": str(repo_root / "compose.yaml"),
+        "dockerfile": str(repo_root / "Dockerfile"),
+        "mox_readme": str(settings.mox_readme_path),
+        "mox_seed_env": str(settings.mox_seed_path),
+        "mox_config_dir": str(settings.mox_config_dir),
+        "mox_data_dir": str(settings.mox_data_dir),
+        "mox_web_dir": str(settings.mox_web_dir),
+        "quickstart_command": context["quickstart_command"],
     }
-
-    install_script = scripts_root / f"install-mail-stack-{adapter.name}.sh"
-    install_script.write_text(adapter.install_script(context), encoding="utf-8")
-    make_executable(install_script)
-
-    apply_script = scripts_root / f"apply-config-{adapter.name}.sh"
-    apply_script.write_text(adapter.apply_config_script(context), encoding="utf-8")
-    make_executable(apply_script)
-
-    install_api_service_script = scripts_root / f"install-api-service-{adapter.name}.sh"
-    install_api_service_script.write_text(
-        adapter.install_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(install_api_service_script)
-
-    start_api_service_script = scripts_root / f"start-api-service-{adapter.name}.sh"
-    start_api_service_script.write_text(
-        adapter.start_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(start_api_service_script)
-
-    stop_api_service_script = scripts_root / f"stop-api-service-{adapter.name}.sh"
-    stop_api_service_script.write_text(
-        adapter.stop_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(stop_api_service_script)
-
-    restart_api_service_script = scripts_root / f"restart-api-service-{adapter.name}.sh"
-    restart_api_service_script.write_text(
-        adapter.restart_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(restart_api_service_script)
-
-    status_api_service_script = scripts_root / f"status-api-service-{adapter.name}.sh"
-    status_api_service_script.write_text(
-        adapter.status_api_service_script(context),
-        encoding="utf-8",
-    )
-    make_executable(status_api_service_script)
-
-    rendered_files["install_script"] = str(install_script)
-    rendered_files["apply_config_script"] = str(apply_script)
-    rendered_files["install_api_service_script"] = str(install_api_service_script)
-    rendered_files["start_api_service_script"] = str(start_api_service_script)
-    rendered_files["stop_api_service_script"] = str(stop_api_service_script)
-    rendered_files["restart_api_service_script"] = str(restart_api_service_script)
-    rendered_files["status_api_service_script"] = str(status_api_service_script)
-    return rendered_files

@@ -9,7 +9,6 @@ from cryptography.fernet import Fernet
 from openmailserver.config import Settings, get_settings
 from openmailserver.database import SessionLocal, create_all
 from openmailserver.models import ApiKey
-from openmailserver.platform.detect import current_platform
 from openmailserver.schemas import MailboxCreate
 from openmailserver.security import DEFAULT_ADMIN_SCOPES, generate_api_key
 from openmailserver.services.backup_service import create_backup, restore_backup, validate_backup
@@ -55,6 +54,7 @@ OPENMAILSERVER_TRANSPORT_MODE={settings.transport_mode}
 OPENMAILSERVER_CANONICAL_HOSTNAME={settings.canonical_hostname}
 OPENMAILSERVER_PRIMARY_DOMAIN={settings.primary_domain}
 OPENMAILSERVER_PUBLIC_IP={settings.public_ip}
+OPENMAILSERVER_MOX_IMAGE={settings.mox_image}
 OPENMAILSERVER_API_KEY_HEADER={settings.api_key_header}
 OPENMAILSERVER_LOG_FILE={settings.log_file}
 OPENMAILSERVER_ADMIN_API_KEY={admin_key}
@@ -85,38 +85,35 @@ def _bootstrap_admin_key() -> str:
 
 @app.command()
 def preflight() -> None:
-    """Run platform-aware prerequisite checks."""
+    """Run prerequisite checks for the containerized runtime."""
     report = doctor_report()
     typer.echo(json.dumps(report, indent=2))
 
 
 @app.command()
 def install() -> None:
-    """Generate local config, mail-stack files, secrets, and service definitions."""
+    """Generate local config, container runtime directories, and install metadata."""
     settings = get_settings()
     settings.ensure_directories()
-    adapter = current_platform()
     create_all()
     admin_key = settings.admin_api_key or _bootstrap_admin_key()
     backup_key = settings.backup_encryption_key or Fernet.generate_key().decode("utf-8")
     env_path = _write_env(settings, admin_key, backup_key)
-    service_definition = adapter.api_service_unit(_repo_root())
-    service_name = (
-        "openmailserver.service" if adapter.name == "linux" else "ai.openmailserver.api.plist"
-    )
-    service_file = settings.config_root / service_name
-    service_file.write_text(service_definition, encoding="utf-8")
-    runtime_files = render_runtime_bundle(settings, adapter, _repo_root())
+    runtime_files = render_runtime_bundle(settings, _repo_root())
     typer.echo(
         json.dumps(
             {
                 "status": "ok",
-                "platform": adapter.name,
+                "runtime": "container-mox",
                 "env_file": str(env_path),
-                "service_file": str(service_file),
-                "install_hint": adapter.install_hint(),
-                "service_hint": adapter.service_hint(),
                 "runtime_files": runtime_files,
+                "quickstart_command": runtime_files["quickstart_command"],
+                "next_steps": [
+                    runtime_files["quickstart_command"],
+                    "docker compose up -d",
+                    "docker compose ps",
+                    "openmailserver doctor",
+                ],
                 "admin_api_key": admin_key,
             },
             indent=2,
@@ -188,7 +185,10 @@ def queue() -> None:
     session = _session()
     try:
         typer.echo(
-            json.dumps({"items": [entry.model_dump(mode="json") for entry in list_queue(session)]}, indent=2)
+            json.dumps(
+                {"items": [entry.model_dump(mode="json") for entry in list_queue(session)]},
+                indent=2,
+            )
         )
     finally:
         session.close()
@@ -215,7 +215,12 @@ def backup_verify(path: str | None = None) -> None:
     else:
         backups = sorted(settings.backup_dir.glob("*.enc"))
         if not backups:
-            typer.echo(json.dumps({"status": "missing", "reason": "No backup archive found"}, indent=2))
+            typer.echo(
+                json.dumps(
+                    {"status": "missing", "reason": "No backup archive found"},
+                    indent=2,
+                )
+            )
             raise typer.Exit(code=1)
         backup_path = backups[-1]
     typer.echo(json.dumps(validate_backup(backup_path), indent=2))

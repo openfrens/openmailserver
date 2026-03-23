@@ -1,4 +1,0 @@
-driver = pgsql
-connect = host={{ database_host }} port={{ database_port }} dbname={{ database_name }} user={{ database_user }} password={{ database_password }}
-default_pass_scheme = BLF-CRYPT
-password_query = SELECT email as user, password_hash as password FROM mailboxes WHERE email='%u' AND active = true

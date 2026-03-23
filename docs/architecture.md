@@ -8,6 +8,7 @@ Core pieces:
 - Typer CLI for agent workflows
 - Postgres for domains, mailboxes, aliases, API keys, outbound mail, and debug metadata
 - Maildir for local mailbox inspection
-- Postfix and Dovecot config templates for real mail delivery/storage integration
+- `mox` as the containerized SMTP/IMAP runtime
 
-The app keeps the user-facing API stable while platform adapters handle native macOS and Linux differences.
+The app keeps the user-facing API stable while Docker Compose manages the API,
+database, and mail runtime as one deployable stack.

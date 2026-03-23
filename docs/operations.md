@@ -16,9 +16,10 @@
 
 ## What `doctor` Checks
 
-- required services and binaries
-- generated runtime config presence
-- database connectivity
+- Docker availability
+- Docker Compose availability
+- container runtime directory presence
+- `mox` quickstart completion
 - hostname and local config consistency
 - relay-safety basics
 - direct-delivery readiness
@@ -50,9 +51,8 @@ Backup and restore cover:
 - attachments stored under `data/attachments`
 - Postgres-backed control-plane data
 
-Backup and restore do not currently capture runtime config under `runtime/`, generated
-secret material such as `runtime/secrets.json`, or other host-level mail server state.
-Copy those files separately if you need full-environment recovery.
+Backup and restore do not currently capture the full `mox` runtime state under
+`runtime/mox/`. Copy that directory separately if you need full-environment recovery.
 
 ## Troubleshooting
 
@@ -61,6 +61,7 @@ Start with:
 ```bash
 openmailserver doctor
 openmailserver queue
+docker compose ps
 ```
 
 Useful debug endpoints:

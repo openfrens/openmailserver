@@ -1,28 +1,20 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from types import SimpleNamespace
 
-from openmailserver.platform.base import PlatformCheck
 from openmailserver.schemas import QueueEntry
 from openmailserver.services import debug_service
 
 
-class _Adapter:
-    name = "linux"
-
-    def platform_checks(self, root: Path):
-        return [
-            PlatformCheck("runtime", "pass", "ready"),
-            PlatformCheck("mail_stack", "warn", "verify packages"),
-        ]
-
-
 def test_health_report_uses_platform_and_settings(monkeypatch):
-    settings = SimpleNamespace(canonical_hostname="mail.example.test", debug_api_enabled=True)
+    settings = SimpleNamespace(
+        canonical_hostname="mail.example.test",
+        debug_api_enabled=True,
+        smtp_host="mox",
+    )
     monkeypatch.setattr(debug_service, "get_settings", lambda: settings)
-    monkeypatch.setattr(debug_service, "current_platform", lambda: _Adapter())
+    monkeypatch.setattr(debug_service.platform, "system", lambda: "Linux")
     monkeypatch.setattr(debug_service.socket, "gethostname", lambda: "snowbook.local")
 
     report = debug_service.health_report()
@@ -44,22 +36,32 @@ def test_doctor_and_config_reports_include_checks(monkeypatch, tmp_path):
         canonical_hostname="mail.example.test",
         primary_domain="example.test",
         public_ip="127.0.0.1",
+        mox_image="r.xmox.nl/mox:latest",
         database_url="sqlite:///hidden.sqlite3",
         backup_encryption_key="configured",
+        config_root=tmp_path,
+        mox_root=tmp_path / "mox",
+        mox_config_dir=tmp_path / "mox" / "config",
     )
+    settings.mox_root.mkdir(parents=True, exist_ok=True)
+    settings.mox_config_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(debug_service, "get_settings", lambda: settings)
-    monkeypatch.setattr(debug_service, "current_platform", lambda: _Adapter())
     monkeypatch.setattr(debug_service.platform, "system", lambda: "Linux")
     monkeypatch.setattr(debug_service, "build_dns_plan", lambda: [{"type": "MX"}])
     monkeypatch.setattr(debug_service.shutil, "which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr(
+        debug_service.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="Docker Compose version"),
+    )
 
     doctor = debug_service.doctor_report()
     config = debug_service.config_report()
 
     assert doctor["status"] == "warn"
-    assert any(check["name"] == "postfix_binary" for check in doctor["checks"])
-    assert any(check["name"] == "dovecot_binary" for check in doctor["checks"])
-    assert any(check["name"] == "postgres_binary" for check in doctor["checks"])
+    assert any(check["name"] == "docker_binary" for check in doctor["checks"])
+    assert any(check["name"] == "docker_compose" for check in doctor["checks"])
+    assert any(check["name"] == "mox_quickstart" for check in doctor["checks"])
     assert any(check["name"] == "port25" for check in doctor["checks"])
     assert doctor["dns_plan"] == [{"type": "MX"}]
     assert config["database_url"] == "***redacted***"
@@ -79,21 +81,27 @@ def test_doctor_report_warns_when_required_binaries_are_missing(monkeypatch, tmp
         canonical_hostname="mail.example.test",
         primary_domain="example.test",
         public_ip="127.0.0.1",
+        mox_image="r.xmox.nl/mox:latest",
         database_url="sqlite:///hidden.sqlite3",
         backup_encryption_key="configured",
+        config_root=tmp_path,
+        mox_root=tmp_path / "mox",
+        mox_config_dir=tmp_path / "mox" / "config",
     )
     monkeypatch.setattr(debug_service, "get_settings", lambda: settings)
-    monkeypatch.setattr(debug_service, "current_platform", lambda: _Adapter())
     monkeypatch.setattr(debug_service.platform, "system", lambda: "Linux")
     monkeypatch.setattr(debug_service, "build_dns_plan", lambda: [{"type": "MX"}])
     monkeypatch.setattr(debug_service.shutil, "which", lambda command: None)
+    def _raise(*args, **kwargs):
+        raise FileNotFoundError
+    monkeypatch.setattr(debug_service.subprocess, "run", _raise)
 
     doctor = debug_service.doctor_report()
     checks = {check["name"]: check for check in doctor["checks"]}
 
-    assert checks["postfix_binary"]["status"] == "warn"
-    assert checks["dovecot_binary"]["status"] == "warn"
-    assert checks["postgres_binary"]["status"] == "warn"
+    assert checks["docker_binary"]["status"] == "warn"
+    assert checks["docker_compose"]["status"] == "warn"
+    assert checks["mox_quickstart"]["status"] == "warn"
 
 
 def test_debug_bundle_delegates_to_underlying_services(monkeypatch):

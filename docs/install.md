@@ -1,6 +1,7 @@
 # Install
 
-`openmailserver` is meant to be installed by an agent with minimal judgment.
+`openmailserver` now has a container-first install path. The repository no longer
+generates host-level `Postfix` or `Dovecot` install scripts.
 
 ## Recommended Flow
 
@@ -8,61 +9,33 @@
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/openmailserver install
+docker compose run --rm mox mox quickstart admin@example.com
+docker compose up -d
 .venv/bin/openmailserver doctor
 ```
 
 The install step writes:
 
-- runtime `Postfix` config
-- runtime `Dovecot` config
-- SQL lookup files
-- platform setup scripts
-- API service definition
+- `.env`
+- `runtime/mox/config/`
+- `runtime/mox/data/`
+- `runtime/mox/web/`
+- `runtime/mox/README.md`
+- `runtime/mox/quickstart.env`
 
-## Apply Mail Stack Setup
+`mox quickstart` then creates the actual `mox.conf` and `domains.conf` files in
+`runtime/mox/config/`.
 
-macOS:
+## Container Runtime
 
-```bash
-./runtime/scripts/install-mail-stack-macos.sh
-./runtime/scripts/apply-config-macos.sh
-./runtime/scripts/install-api-service-macos.sh
-./runtime/scripts/status-api-service-macos.sh
-```
+The checked-in `compose.yaml` is the primary deployment entry point and runs:
 
-Linux:
+- `postgres`
+- `api`
+- `mox`
 
-```bash
-./runtime/scripts/install-mail-stack-linux.sh
-./runtime/scripts/apply-config-linux.sh
-./runtime/scripts/install-api-service-linux.sh
-./runtime/scripts/status-api-service-linux.sh
-```
-
-On Ubuntu and Debian, the generated installer uses the distro-default
-`python3`, `python3-venv`, and `python3-pip` packages rather than a hardcoded
-minor version, and installs the Dovecot LMTP package needed by the generated
-mail-delivery config.
-
-The generated Linux installer also installs the PostgreSQL integration packages
-used by the rendered `Postfix` and `Dovecot` configuration, and bootstraps the
-default `openmailserver` database and role.
-
-Both generated install scripts also install `curl` so the API can be tested
-immediately after setup.
-
-## API Service Management
-
-The API can run as a background service using the generated scripts under
-`runtime/scripts/`.
-
-Useful scripts:
-
-- `install-api-service-linux.sh` / `install-api-service-macos.sh`
-- `start-api-service-linux.sh` / `start-api-service-macos.sh`
-- `stop-api-service-linux.sh` / `stop-api-service-macos.sh`
-- `restart-api-service-linux.sh` / `restart-api-service-macos.sh`
-- `status-api-service-linux.sh` / `status-api-service-macos.sh`
+The checked-in `Dockerfile` builds the API image. The `mox` container uses the
+official upstream image and persists runtime data under `runtime/mox/`.
 
 ## Continue
 
@@ -70,6 +43,7 @@ Useful scripts:
 .venv/bin/openmailserver plan-dns
 .venv/bin/openmailserver create-mailbox agent example.com
 .venv/bin/openmailserver smoke-test
+curl http://127.0.0.1:8787/health
 ```
 
 ## Important Configuration
@@ -79,9 +53,10 @@ Review `.env.example` and the generated `.env`.
 Most important values:
 
 - `OPENMAILSERVER_DATABASE_URL`
-- `OPENMAILSERVER_MAILDIR_ROOT`
+- `OPENMAILSERVER_SMTP_HOST`
 - `OPENMAILSERVER_CANONICAL_HOSTNAME`
 - `OPENMAILSERVER_PRIMARY_DOMAIN`
 - `OPENMAILSERVER_PUBLIC_IP`
 - `OPENMAILSERVER_ADMIN_API_KEY`
 - `OPENMAILSERVER_BACKUP_ENCRYPTION_KEY`
+- `OPENMAILSERVER_MOX_IMAGE`

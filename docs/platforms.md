@@ -2,12 +2,12 @@
 
 Supported targets:
 
-- native macOS on Mac mini
-- Linux on standard servers and ARM devices such as Raspberry Pi
+- Linux Docker hosts for direct-to-MX delivery
+- macOS and other developer machines for control-plane development and local testing
 
 Guidance:
 
 - keep the CLI and API identical across platforms
-- let installers and doctor checks adapt to the host
-- prefer the native install path on each platform
-- use the containerized path only when it is genuinely simpler
+- use Docker Compose as the default runtime path
+- prefer Linux for public internet delivery so the mail runtime has predictable access to ports and networking
+- treat local desktop Docker environments as development conveniences, not the reference deployment

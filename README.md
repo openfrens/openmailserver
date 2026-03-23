@@ -1,28 +1,28 @@
 # Open Mailserver
 
-`openmailserver` is an open-source, self-hosted mail server control plane for agents. It helps you provision inboxes on infrastructure you control, using your own domain, through an HTTP API, a CLI, and generated `Postfix` and `Dovecot` configuration for native macOS and Linux hosts.
+`openmailserver` is an open-source, self-hosted mail server control plane for agents. It helps you provision inboxes on infrastructure you control, using your own domain, through an HTTP API, a CLI, and a containerized mail runtime built around `mox`.
 
 Website: [openmailserver.com](https://www.openmailserver.com) | License: MIT | Requires Python `3.11+`
 
 ## What Open Mailserver Is
 
-Open Mailserver manages the control plane for a direct-to-MX mail server. The application handles mailbox provisioning, aliases, API keys, outbound mail metadata, backups, and debugging, while the generated runtime bundle and platform scripts help you install and manage the underlying mail stack on the host.
+Open Mailserver manages the control plane for a direct-to-MX mail server. The application handles mailbox provisioning, aliases, API keys, outbound mail metadata, backups, and debugging, while Docker Compose and `mox` provide the underlying mail runtime.
 
 It includes:
 
 - A FastAPI HTTP API for mailboxes, aliases, outbound mail, queue inspection, backups, DNS planning, and debugging.
 - A Typer CLI for install, health checks, mailbox provisioning, queue inspection, backup, and restore workflows.
-- Generated `Postfix` and `Dovecot` configuration.
+- A containerized `mox` runtime for SMTP, IMAP, and direct-to-MX delivery.
 - `Postgres` storage for control-plane state and outbound metadata.
 - `Maildir` storage for local mailbox contents.
-- Platform-specific runtime scripts for native Linux and macOS setup.
+- A checked-in Docker Compose deployment story.
 
 Important operational constraints:
 
 - `openmailserver` is designed for direct-to-MX mail delivery.
 - For public internet delivery, the host needs a static public IP, outbound port `25`, forward and reverse DNS, `MX`, `SPF`, `DKIM`, `DMARC`, and `TLS`.
-- `Postfix` and `Dovecot` are not bundled inside the Python package; the generated platform scripts install and configure them on the host.
-- `compose.yaml` is for the API and `Postgres` only, not a full mail-stack deployment.
+- `compose.yaml` is now the primary deployment path and includes the API, `Postgres`, and the `mox` runtime.
+- For public internet delivery, prefer a Linux Docker host with direct access to ports `25`, `80`, and `443`.
 
 ## Quick Start
 
@@ -32,36 +32,20 @@ cd openmailserver
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/openmailserver install
+docker compose run --rm mox mox quickstart admin@example.com
+docker compose up -d
 .venv/bin/openmailserver doctor
 ```
 
 The `install` command generates:
 
 - `.env`
-- Runtime `Postfix` and `Dovecot` configuration
-- SQL lookup files
-- Platform-specific scripts under `runtime/scripts/`
-- A service definition for running the API in the background
+- Runtime directories for `mox`
+- A `mox` quickstart seed file
+- Container runtime guidance under `runtime/mox/`
 
-Run the generated scripts for your platform from `runtime/scripts/`.
-
-Linux:
-
-```bash
-./runtime/scripts/install-mail-stack-linux.sh
-./runtime/scripts/apply-config-linux.sh
-./runtime/scripts/install-api-service-linux.sh
-./runtime/scripts/status-api-service-linux.sh
-```
-
-macOS:
-
-```bash
-./runtime/scripts/install-mail-stack-macos.sh
-./runtime/scripts/apply-config-macos.sh
-./runtime/scripts/install-api-service-macos.sh
-./runtime/scripts/status-api-service-macos.sh
-```
+Run `mox quickstart` once to create `runtime/mox/config/mox.conf` and
+`runtime/mox/config/domains.conf`, then start the full stack with Docker Compose.
 
 Then continue with:
 
@@ -79,7 +63,7 @@ curl http://127.0.0.1:8787/health
 | Command | Purpose |
 | --- | --- |
 | `openmailserver preflight` | Run prerequisite checks. |
-| `openmailserver install` | Generate `.env`, runtime config, scripts, and a service definition. |
+| `openmailserver install` | Generate `.env`, runtime directories, and `mox` setup guidance. |
 | `openmailserver doctor` | Run direct-delivery readiness checks. |
 | `openmailserver plan-dns` | Print the required DNS records. |
 | `openmailserver create-mailbox <local-part> <domain>` | Provision a mailbox. |
@@ -114,7 +98,7 @@ make test
 
 `make run` starts the FastAPI app on `0.0.0.0:8787`. The repository includes automated tests under `tests/`.
 
-After `.env` exists, `compose.yaml` can also be used to run the API and `Postgres` for local control-plane development. It does not install or run the native mail stack.
+After `.env` exists, `compose.yaml` is the default way to run the API, `Postgres`, and the `mox` runtime together.
 
 ## Documentation
 
@@ -125,6 +109,7 @@ After `.env` exists, `compose.yaml` can also be used to run the API and `Postgre
 - [`docs/dns.md`](docs/dns.md)
 - [`docs/security.md`](docs/security.md)
 - [`docs/platforms.md`](docs/platforms.md)
+- [`docs/runtime-removal-matrix.md`](docs/runtime-removal-matrix.md)
 
 ## License
 

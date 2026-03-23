@@ -12,8 +12,9 @@ def test_install_command_writes_runtime():
     assert result.exit_code == 0
     assert "admin_api_key" in result.stdout
     assert "runtime_files" in result.stdout
-    assert "install-mail-stack" in result.stdout
-    assert "install-api-service" in result.stdout
+    assert "container-mox" in result.stdout
+    assert "quickstart_command" in result.stdout
+    assert "docker compose up -d" in result.stdout
 
 
 def test_plan_dns_command_outputs_records():

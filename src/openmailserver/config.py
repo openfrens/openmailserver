@@ -17,24 +17,25 @@ class Settings(BaseSettings):
     )
 
     env: str = "development"
-    host: str = "127.0.0.1"
+    host: str = "0.0.0.0"
     port: int = 8787
     data_dir: Path = Path("./data")
     log_dir: Path = Path("./logs")
-    database_url: str = "postgresql+psycopg://openmailserver:openmailserver@127.0.0.1:5432/openmailserver"
+    database_url: str = "postgresql+psycopg://openmailserver:openmailserver@postgres:5432/openmailserver"
     fallback_database_url: str = "sqlite+pysqlite:///./data/openmailserver.sqlite3"
     database_superuser: str = "postgres"
     database_superuser_password: str | None = None
     maildir_root: Path = Path("./data/maildir")
     attachment_root: Path = Path("./data/attachments")
     config_root: Path = Path("./runtime")
-    smtp_host: str = "127.0.0.1"
+    smtp_host: str = "mox"
     smtp_port: int = 25
     smtp_timeout_seconds: int = 15
     transport_mode: str = "smtp"
     canonical_hostname: str = "mail.example.com"
     primary_domain: str = "example.com"
     public_ip: str = "203.0.113.10"
+    mox_image: str = "r.xmox.nl/mox:latest"
     api_key_header: str = "X-OpenMailserver-Key"
     log_file: Path = Path("./logs/openmailserver.log")
     admin_api_key: str | None = None
@@ -58,6 +59,30 @@ class Settings(BaseSettings):
     @property
     def runtime_secret_path(self) -> Path:
         return self.config_root / "secrets.json"
+
+    @property
+    def mox_root(self) -> Path:
+        return self.config_root / "mox"
+
+    @property
+    def mox_config_dir(self) -> Path:
+        return self.mox_root / "config"
+
+    @property
+    def mox_data_dir(self) -> Path:
+        return self.mox_root / "data"
+
+    @property
+    def mox_web_dir(self) -> Path:
+        return self.mox_root / "web"
+
+    @property
+    def mox_readme_path(self) -> Path:
+        return self.mox_root / "README.md"
+
+    @property
+    def mox_seed_path(self) -> Path:
+        return self.mox_root / "quickstart.env"
 
     @property
     def backup_dir(self) -> Path:
