@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openmailserver"
+version = "0.1.0"
+description = "Self-hostable mail server control plane for agent inboxes and API-driven mail."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["email", "mailserver", "mox", "fastapi", "self-hosted", "agents"]
+authors = [
+  { name = "Open Mailserver Contributors" }
+]
+classifiers = [
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Communications :: Email",
+]
+dependencies = [
+  "bcrypt>=4.2.0",
+  "cryptography>=43.0.0",
+  "fastapi>=0.115.0",
+  "psycopg[binary]>=3.2.0",
+  "pydantic-settings>=2.6.0",
+  "python-dotenv>=1.0.1",
+  "sqlalchemy>=2.0.36",
+  "typer>=0.15.0",
+  "uvicorn>=0.32.0",
+]
+
+[project.urls]
+Homepage = "https://www.openmailserver.com"
+Documentation = "https://github.com/openfrens/openmailserver/tree/main/docs"
+Repository = "https://github.com/openfrens/openmailserver"
+Issues = "https://github.com/openfrens/openmailserver/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-cov>=6.0.0",
+  "pytest-mock>=3.14.0",
+  "ruff>=0.8.0",
+]
+
+[project.scripts]
+openmailserver = "openmailserver.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openmailserver"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008"]

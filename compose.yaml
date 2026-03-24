@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openmailserver
+      POSTGRES_USER: openmailserver
+      POSTGRES_PASSWORD: openmailserver
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openmailserver -d openmailserver"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["uvicorn", "openmailserver.app:app", "--host", "0.0.0.0", "--port", "8787"]
+    env_file:
+      - .env
+    environment:
+      OPENMAILSERVER_DATABASE_URL: postgresql+psycopg://openmailserver:openmailserver@postgres:5432/openmailserver
+      OPENMAILSERVER_FALLBACK_DATABASE_URL: sqlite+pysqlite:///./data/openmailserver.sqlite3
+      OPENMAILSERVER_HOST: 0.0.0.0
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./runtime:/app/runtime
+    ports:
+      - "8787:8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mox:
+        condition: service_started
+
+  mox:
+    image: r.xmox.nl/mox:latest
+    restart: unless-stopped
+    working_dir: /mox
+    environment:
+      MOX_DOCKER: "yes"
+    command:
+      - /bin/sh
+      - -lc
+      - >
+        if [ ! -f /mox/config/mox.conf ]; then
+          echo "Run openmailserver mox-quickstart";
+          exit 1;
+        fi;
+        exec mox serve
+    env_file:
+      - .env
+    volumes:
+      - ./runtime/mox/config:/mox/config
+      - ./runtime/mox/data:/mox/data
+      - ./runtime/mox/web:/mox/web
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "143:143"
+      - "993:993"
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /mox/config/mox.conf"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
