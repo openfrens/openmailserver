@@ -74,10 +74,13 @@ docker compose up -d
 
 If another reverse proxy or web server already owns public `80` and `443` on the
 same host, generate the stack config with loopback-only binds for the `mox` web
-listeners and proxy the mail hostname to those loopback ports:
+listeners and proxy the mail hostname to those loopback ports. If you also want
+the Open Mailserver API published on a different host-side port or only on
+loopback, add `--api-bind` too:
 
 ```bash
 .venv/bin/openmailserver install \
+  --api-bind 127.0.0.1:9787 \
   --mox-http-bind 127.0.0.1:8080 \
   --mox-https-bind 127.0.0.1:8443
 ```
