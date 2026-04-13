@@ -59,7 +59,7 @@ curl http://127.0.0.1:8787/health
 
 By default, the stack publishes the API and web interfaces on host ports
 `8787`, `80`, and `443`. To change those binds, see
-[`docs/install.md#custom-port-binds`](docs/install.md#custom-port-binds) for the
+[the installation docs](docs/install.md#custom-port-binds) for the
 supported reverse-proxy deployment flow.
 
 Use a real domain from the start. Public internet delivery is not ready until
