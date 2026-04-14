@@ -149,22 +149,12 @@ def preflight() -> None:
     typer.echo(json.dumps(report, indent=2))
 
 
-@app.command()
-def install(
-    api_bind: str | None = typer.Option(
-        None,
-        help="Docker host bind for the API service, for example 8787 or 127.0.0.1:8787.",
-    ),
-    mox_http_bind: str | None = typer.Option(
-        None,
-        help="Docker host bind for mox HTTP, for example 80 or 127.0.0.1:8080.",
-    ),
-    mox_https_bind: str | None = typer.Option(
-        None,
-        help="Docker host bind for mox HTTPS, for example 443 or 127.0.0.1:8443.",
-    ),
+def _run_install(
+    *,
+    api_bind: str | None = None,
+    mox_http_bind: str | None = None,
+    mox_https_bind: str | None = None,
 ) -> None:
-    """Generate local config, container runtime directories, and install metadata."""
     settings = _install_settings_with_overrides(
         get_settings(),
         api_bind=api_bind,
@@ -200,6 +190,29 @@ def install(
             },
             indent=2,
         )
+    )
+
+
+@app.command()
+def install(
+    api_bind: str | None = typer.Option(
+        None,
+        help="Docker host bind for the API service, for example 8787 or 127.0.0.1:8787.",
+    ),
+    mox_http_bind: str | None = typer.Option(
+        None,
+        help="Docker host bind for mox HTTP, for example 80 or 127.0.0.1:8080.",
+    ),
+    mox_https_bind: str | None = typer.Option(
+        None,
+        help="Docker host bind for mox HTTPS, for example 443 or 127.0.0.1:8443.",
+    ),
+) -> None:
+    """Generate local config, container runtime directories, and install metadata."""
+    _run_install(
+        api_bind=api_bind,
+        mox_http_bind=mox_http_bind,
+        mox_https_bind=mox_https_bind,
     )
 
 
@@ -384,7 +397,7 @@ def restore(path: str) -> None:
 @app.command()
 def bootstrap() -> None:
     """Convenience wrapper for install -> doctor."""
-    install()
+    _run_install()
     doctor()
 
 

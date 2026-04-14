@@ -5,7 +5,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from openmailserver import cli
-from openmailserver.cli import app
+from openmailserver.cli import _install_settings_with_overrides, app
+from openmailserver.config import Settings
 
 runner = CliRunner()
 
@@ -41,6 +42,46 @@ def test_install_command_writes_bind_overrides_in_env():
         assert "OPENMAILSERVER_API_BIND=127.0.0.1:9787" in env_text
         assert "OPENMAILSERVER_MOX_HTTP_BIND=127.0.0.1:8080" in env_text
         assert "OPENMAILSERVER_MOX_HTTPS_BIND=127.0.0.1:8443" in env_text
+
+
+def test_bootstrap_command_runs_install_and_doctor():
+    with runner.isolated_filesystem():
+        result = runner.invoke(app, ["bootstrap"])
+        assert result.exit_code == 0
+        assert "admin_api_key" in result.stdout
+        assert "published_ports" in result.stdout
+        assert "container-mox" in result.stdout
+        env_text = Path(".env").read_text(encoding="utf-8")
+        assert "OPENMAILSERVER_API_BIND=8787" in env_text
+        assert "OPENMAILSERVER_MOX_HTTP_BIND=80" in env_text
+        assert "OPENMAILSERVER_MOX_HTTPS_BIND=443" in env_text
+
+
+def test_install_settings_with_overrides_no_overrides():
+    settings = Settings()
+    result = _install_settings_with_overrides(settings)
+    assert result is settings
+
+
+def test_install_settings_with_overrides_partial():
+    settings = Settings()
+    result = _install_settings_with_overrides(settings, api_bind="127.0.0.1:9787")
+    assert result.api_bind == "127.0.0.1:9787"
+    assert result.mox_http_bind == settings.mox_http_bind
+    assert result.mox_https_bind == settings.mox_https_bind
+
+
+def test_install_settings_with_overrides_all():
+    settings = Settings()
+    result = _install_settings_with_overrides(
+        settings,
+        api_bind="127.0.0.1:9787",
+        mox_http_bind="127.0.0.1:8080",
+        mox_https_bind="127.0.0.1:8443",
+    )
+    assert result.api_bind == "127.0.0.1:9787"
+    assert result.mox_http_bind == "127.0.0.1:8080"
+    assert result.mox_https_bind == "127.0.0.1:8443"
 
 
 def test_plan_dns_command_outputs_records():
