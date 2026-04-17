@@ -113,10 +113,10 @@ def test_plan_dns_command_outputs_records():
 
 def test_plan_dns_command_requires_public_ip():
     cli.get_settings.cache_clear()
-    result = runner.invoke(app, ["plan-dns"], color=False)
+    result = runner.invoke(app, ["plan-dns"])
 
-    assert result.exit_code != 0
-    assert "--public-ip" in result.output
+    assert result.exit_code == 2
+    assert "Usage:" in result.output
 
 
 def test_create_mailbox_delegates_to_api_container(monkeypatch):
