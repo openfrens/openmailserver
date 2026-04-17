@@ -32,7 +32,30 @@ Prerequisites:
 - Python `3.11+` with `venv`
 - Docker with Compose v2
 
-Then run:
+Choose one install path:
+
+### Option 1: Let an agent install it
+
+Paste this prompt into Claude, Cursor, or another coding agent:
+
+```text
+Install Open Mailserver on this machine from https://github.com/openfrens/openmailserver.
+
+Use the docs in docs/install.md as the source of truth.
+
+Your job:
+1. Check that git, Python 3.11+, venv, and Docker Compose v2 are available.
+2. Clone the repo and create a local .venv.
+3. Install the project in editable mode with dev dependencies.
+4. Run: openmailserver preflight, install, mox-quickstart, docker compose up -d, and openmailserver doctor.
+5. Ask me for my real domain before filling any domain-related config.
+6. After the stack is healthy, run the smoke test and generate the DNS plan.
+7. Summarize what you changed, what still needs my input, and the exact DNS records I need to add.
+
+Do not skip errors. If something fails, stop and explain the fix before continuing.
+```
+
+### Option 2: Run the install yourself
 
 ```bash
 git clone https://github.com/openfrens/openmailserver
