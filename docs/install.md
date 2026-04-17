@@ -64,7 +64,7 @@ cd openmailserver
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/openmailserver preflight
-.venv/bin/openmailserver install
+.venv/bin/openmailserver install --domain yourdomain.com --hostname mail.yourdomain.com
 .venv/bin/openmailserver mox-quickstart
 docker compose up -d
 .venv/bin/openmailserver doctor
@@ -80,14 +80,15 @@ loopback, add `--api-bind` too:
 
 ```bash
 .venv/bin/openmailserver install \
+  --domain yourdomain.com \
+  --hostname mail.yourdomain.com \
   --api-bind 127.0.0.1:9787 \
   --mox-http-bind 127.0.0.1:8080 \
   --mox-https-bind 127.0.0.1:8443
 ```
 
-Review the generated `.env` and set `OPENMAILSERVER_PRIMARY_DOMAIN`,
-`OPENMAILSERVER_CANONICAL_HOSTNAME`, and related values for the real domain you
-intend to host.
+The install step writes the provided domain and hostname into the generated
+`.env`. Review the rest of the generated values before you continue.
 
 The install step writes:
 
@@ -187,7 +188,7 @@ mailbox can also be accessed with:
 Once the stack is running, use:
 
 ```bash
-.venv/bin/openmailserver plan-dns
+.venv/bin/openmailserver plan-dns --public-ip <server-public-ip>
 ```
 
 That output is the DNS checklist for direct-to-MX delivery on the public
@@ -213,7 +214,6 @@ Most important values:
 - `OPENMAILSERVER_SMTP_HOST`
 - `OPENMAILSERVER_CANONICAL_HOSTNAME`
 - `OPENMAILSERVER_PRIMARY_DOMAIN`
-- `OPENMAILSERVER_PUBLIC_IP`
 - `OPENMAILSERVER_MOX_HTTP_BIND`
 - `OPENMAILSERVER_MOX_HTTPS_BIND`
 - `OPENMAILSERVER_MOX_ADMIN_ACCOUNT`
@@ -221,3 +221,7 @@ Most important values:
 - `OPENMAILSERVER_ADMIN_API_KEY`
 - `OPENMAILSERVER_BACKUP_ENCRYPTION_KEY`
 - `OPENMAILSERVER_MOX_IMAGE`
+
+`openmailserver plan-dns` now takes the server IP explicitly with
+`--public-ip`, so you do not need to set `OPENMAILSERVER_PUBLIC_IP` during
+install just to generate the DNS plan.

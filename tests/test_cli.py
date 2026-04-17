@@ -11,8 +11,15 @@ from openmailserver.config import Settings
 runner = CliRunner()
 
 
-def test_install_command_writes_runtime():
-    result = runner.invoke(app, ["install"])
+def test_install_command_writes_runtime(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cli.get_settings.cache_clear()
+
+    result = runner.invoke(
+        app,
+        ["install", "--domain", "example.test", "--hostname", "mail.example.test"],
+    )
+
     assert result.exit_code == 0
     assert "admin_api_key" in result.stdout
     assert "published_ports" in result.stdout
@@ -20,6 +27,9 @@ def test_install_command_writes_runtime():
     assert "container-mox" in result.stdout
     assert "quickstart_command" in result.stdout
     assert "docker compose up -d" in result.stdout
+    env_contents = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "OPENMAILSERVER_PRIMARY_DOMAIN=example.test" in env_contents
+    assert "OPENMAILSERVER_CANONICAL_HOSTNAME=mail.example.test" in env_contents
 
 
 def test_install_command_writes_bind_overrides_in_env():
@@ -28,6 +38,10 @@ def test_install_command_writes_bind_overrides_in_env():
             app,
             [
                 "install",
+                "--domain",
+                "example.test",
+                "--hostname",
+                "mail.example.test",
                 "--api-bind",
                 "127.0.0.1:9787",
                 "--mox-http-bind",
@@ -46,7 +60,10 @@ def test_install_command_writes_bind_overrides_in_env():
 
 def test_bootstrap_command_runs_install_and_doctor():
     with runner.isolated_filesystem():
-        result = runner.invoke(app, ["bootstrap"])
+        result = runner.invoke(
+            app,
+            ["bootstrap", "--domain", "example.test", "--hostname", "mail.example.test"],
+        )
         assert result.exit_code == 0
         assert "admin_api_key" in result.stdout
         assert "published_ports" in result.stdout
@@ -55,6 +72,8 @@ def test_bootstrap_command_runs_install_and_doctor():
         assert "OPENMAILSERVER_API_BIND=8787" in env_text
         assert "OPENMAILSERVER_MOX_HTTP_BIND=80" in env_text
         assert "OPENMAILSERVER_MOX_HTTPS_BIND=443" in env_text
+        assert "OPENMAILSERVER_PRIMARY_DOMAIN=example.test" in env_text
+        assert "OPENMAILSERVER_CANONICAL_HOSTNAME=mail.example.test" in env_text
 
 
 def test_install_settings_with_overrides_no_overrides():
@@ -85,9 +104,19 @@ def test_install_settings_with_overrides_all():
 
 
 def test_plan_dns_command_outputs_records():
-    result = runner.invoke(app, ["plan-dns"])
+    cli.get_settings.cache_clear()
+    result = runner.invoke(app, ["plan-dns", "--public-ip", "198.51.100.24"])
     assert result.exit_code == 0
     assert "MX" in result.stdout
+    assert "198.51.100.24" in result.stdout
+
+
+def test_plan_dns_command_requires_public_ip():
+    cli.get_settings.cache_clear()
+    result = runner.invoke(app, ["plan-dns"], color=False)
+
+    assert result.exit_code != 0
+    assert "--public-ip" in result.output
 
 
 def test_create_mailbox_delegates_to_api_container(monkeypatch):

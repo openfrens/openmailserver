@@ -40,7 +40,7 @@ cd openmailserver
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/openmailserver preflight
-.venv/bin/openmailserver install
+.venv/bin/openmailserver install --domain yourdomain.com --hostname mail.yourdomain.com
 .venv/bin/openmailserver mox-quickstart
 docker compose up -d
 .venv/bin/openmailserver doctor
@@ -52,7 +52,7 @@ After the stack is up:
 .venv/bin/openmailserver create-mailbox agent yourdomain.com
 curl http://127.0.0.1:8787/health
 .venv/bin/openmailserver smoke-test
-.venv/bin/openmailserver plan-dns
+.venv/bin/openmailserver plan-dns --public-ip <server-public-ip>
 ```
 
 ## Custom Port Binds

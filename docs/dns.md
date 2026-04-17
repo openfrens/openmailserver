@@ -1,6 +1,7 @@
 # DNS Setup
 
-`openmailserver plan-dns` prints the records required for direct-to-MX delivery.
+`openmailserver plan-dns --public-ip <server-public-ip>` prints the records
+required for direct-to-MX delivery.
 
 The expected flow is that you configure Open Mailserver for the real domain
 first, then use this output to finish DNS before expecting internet mail to work

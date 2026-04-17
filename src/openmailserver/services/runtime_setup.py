@@ -58,8 +58,8 @@ def render_runtime_bundle(settings: Settings, repo_root: Path) -> dict[str, str]
 
             ## Quickstart
 
-            1. Review `.env` and set `OPENMAILSERVER_PRIMARY_DOMAIN` plus
-               `OPENMAILSERVER_CANONICAL_HOSTNAME` for the real domain you want to host.
+            1. Review `.env` and confirm the install-time domain and hostname values
+               for the real domain you want to host.
             2. Generate the `mox` config files:
 
                `{{ quickstart_command }}`

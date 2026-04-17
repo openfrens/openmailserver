@@ -151,15 +151,25 @@ def preflight() -> None:
 
 def _run_install(
     *,
+    domain: str,
+    hostname: str,
     api_bind: str | None = None,
     mox_http_bind: str | None = None,
     mox_https_bind: str | None = None,
 ) -> None:
-    settings = _install_settings_with_overrides(
+    base_settings = _install_settings_with_overrides(
         get_settings(),
         api_bind=api_bind,
         mox_http_bind=mox_http_bind,
         mox_https_bind=mox_https_bind,
+    )
+    settings = base_settings.model_copy(
+        update={
+            "primary_domain": domain,
+            "canonical_hostname": hostname,
+            "imap_host": None,
+            "mox_admin_address": f"{base_settings.mox_admin_account}@{domain}",
+        }
     )
     settings.ensure_directories()
     create_all()
@@ -195,6 +205,10 @@ def _run_install(
 
 @app.command()
 def install(
+    domain: str = typer.Option(..., "--domain", help="Primary domain to host mail for."),
+    hostname: str = typer.Option(
+        ..., "--hostname", help="Canonical mail hostname, for example mail.example.com."
+    ),
     api_bind: str | None = typer.Option(
         None,
         help="Docker host bind for the API service, for example 8787 or 127.0.0.1:8787.",
@@ -210,6 +224,8 @@ def install(
 ) -> None:
     """Generate local config, container runtime directories, and install metadata."""
     _run_install(
+        domain=domain,
+        hostname=hostname,
         api_bind=api_bind,
         mox_http_bind=mox_http_bind,
         mox_https_bind=mox_https_bind,
@@ -240,7 +256,11 @@ def mox_quickstart() -> None:
 
 
 @app.command("plan-dns")
-def plan_dns() -> None:
+def plan_dns(
+    public_ip: str = typer.Option(
+        ..., "--public-ip", help="Public IP address for the mail host."
+    ),
+) -> None:
     """Print the DNS records required for direct-to-MX setup."""
     settings = get_settings()
     typer.echo(
@@ -248,7 +268,7 @@ def plan_dns() -> None:
             {
                 "hostname": settings.canonical_hostname,
                 "domain": settings.primary_domain,
-                "records": build_dns_plan(),
+                "records": build_dns_plan(public_ip=public_ip),
             },
             indent=2,
         )
@@ -395,9 +415,32 @@ def restore(path: str) -> None:
 
 
 @app.command()
-def bootstrap() -> None:
+def bootstrap(
+    domain: str = typer.Option(..., "--domain", help="Primary domain to host mail for."),
+    hostname: str = typer.Option(
+        ..., "--hostname", help="Canonical mail hostname, for example mail.example.com."
+    ),
+    api_bind: str | None = typer.Option(
+        None,
+        help="Docker host bind for the API service, for example 8787 or 127.0.0.1:8787.",
+    ),
+    mox_http_bind: str | None = typer.Option(
+        None,
+        help="Docker host bind for mox HTTP, for example 80 or 127.0.0.1:8080.",
+    ),
+    mox_https_bind: str | None = typer.Option(
+        None,
+        help="Docker host bind for mox HTTPS, for example 443 or 127.0.0.1:8443.",
+    ),
+) -> None:
     """Convenience wrapper for install -> doctor."""
-    _run_install()
+    _run_install(
+        domain=domain,
+        hostname=hostname,
+        api_bind=api_bind,
+        mox_http_bind=mox_http_bind,
+        mox_https_bind=mox_https_bind,
+    )
     doctor()
 
 

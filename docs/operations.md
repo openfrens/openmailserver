@@ -3,8 +3,8 @@
 ## CLI
 
 - `openmailserver preflight`
-- `openmailserver install`
-- `openmailserver plan-dns`
+- `openmailserver install --domain <domain> --hostname <mail-hostname>`
+- `openmailserver plan-dns --public-ip <server-public-ip>`
 - `openmailserver doctor`
 - `openmailserver create-mailbox <local-part> <domain>`
 - `openmailserver smoke-test`
@@ -29,10 +29,11 @@
 Open Mailserver is designed for the user to supply the real domain up front,
 then verify the stack on the current machine while DNS is still being completed.
 
-- configure the real domain and canonical mail hostname in `.env`
+- set the real domain and canonical mail hostname during `openmailserver install`
 - confirm `docker compose up`, `curl /health`, mailbox creation, and
   `openmailserver smoke-test`
-- use `openmailserver plan-dns` to finish the internet-facing setup
+- use `openmailserver plan-dns --public-ip <server-public-ip>` to finish the
+  internet-facing setup
 
 ## Direct Delivery Requirements
 
