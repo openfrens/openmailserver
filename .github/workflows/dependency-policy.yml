@@ -1,0 +1,20 @@
+name: Dependency Policy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  dependency-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enforce pinned dependencies and 7-day package age
+        run: node scripts/check-dependency-policy.mjs
+      - name: Report potential unused dependencies
+        run: node scripts/report-unused-deps.mjs
